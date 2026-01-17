@@ -73,12 +73,23 @@ class CameraFetcher:
                 if not point_in_polygon(lon, lat):
                     continue
 
+            # Parse council_district - may be "4, 7" for multiple districts
+            council_district = None
+            raw_district = camera_data.get("council_district")
+            if raw_district is not None:
+                try:
+                    # Handle "4, 7" by taking first value
+                    district_str = str(raw_district).split(",")[0].strip()
+                    council_district = int(district_str)
+                except (ValueError, TypeError):
+                    pass
+
             camera = Camera(
                 camera_id=camera_data.get("camera_id", ""),
                 location_name=camera_data.get("location_name", ""),
                 longitude=lon,
                 latitude=lat,
-                council_district=camera_data.get("council_district"),
+                council_district=council_district,
             )
             cameras.append(camera)
 
