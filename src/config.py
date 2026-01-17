@@ -41,7 +41,7 @@ def load_config() -> Config:
 
     model_url = os.environ.get(
         "MODEL_URL",
-        "https://github.com/USER/waymo-counter/releases/download/v1.0/best.pt"
+        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt"
     )
 
     # Model stored in models/ directory
