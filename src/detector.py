@@ -117,7 +117,8 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
-            original_image=image,
+            # Only store image if there are detections to avoid memory bloat
+            original_image=image if detections else None,
         )
 
     def detect_from_pil(self, image: Image.Image, camera_id: str) -> DetectionResult:
@@ -162,5 +163,6 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
-            original_image=image,
+            # Only store image if there are detections to avoid memory bloat
+            original_image=image if detections else None,
         )

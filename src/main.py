@@ -48,6 +48,10 @@ def process_camera(
             annotated = annotate_image(result.original_image, result.detections)
             compressed = compress_image(annotated)
             image_url = image_storage.upload_image(compressed, camera.camera_id, timestamp)
+            # Clear image references to free memory
+            result.original_image = None
+            del annotated
+            del compressed
 
         return (camera, result, None, image_url)
 
