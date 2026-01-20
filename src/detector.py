@@ -39,7 +39,7 @@ class WaymoDetector:
         self,
         model_path: Path,
         model_url: str,
-        confidence_threshold: float = 0.25,
+        confidence_threshold: float = 0.50,
     ):
         self.model_path = model_path
         self.model_url = model_url

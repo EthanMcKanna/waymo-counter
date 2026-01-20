@@ -38,7 +38,7 @@ waymo-counter/
 | `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_KEY` | Yes | Service role key (not anon) |
 | `MODEL_URL` | No | URL to download model weights |
-| `CONFIDENCE_THRESHOLD` | No | Min detection confidence (default: 0.25) |
+| `CONFIDENCE_THRESHOLD` | No | Min detection confidence (default: 0.50) |
 | `MAX_WORKERS` | No | Concurrent threads (default: 3) |
 
 ## Supabase Schema
