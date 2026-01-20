@@ -16,31 +16,43 @@ from .cameras import Camera, CameraFetcher
 from .config import load_config
 from .database import Database
 from .detector import DetectionResult, WaymoDetector
+from .image_annotator import annotate_image, compress_image
+from .storage import ImageStorage
 
 
 def process_camera(
     camera: Camera,
     camera_fetcher: CameraFetcher,
     detector: WaymoDetector,
-) -> tuple[Camera, DetectionResult | None, str | None]:
+    image_storage: ImageStorage | None = None,
+) -> tuple[Camera, DetectionResult | None, str | None, str | None]:
     """
-    Process a single camera: fetch image and run detection.
+    Process a single camera: fetch image, run detection, and optionally upload annotated image.
 
     Returns:
-        Tuple of (camera, detection_result, error_message)
+        Tuple of (camera, detection_result, error_message, image_url)
     """
     try:
         # Fetch image
         image_bytes = camera_fetcher.fetch_image(camera.camera_id)
         if image_bytes is None:
-            return (camera, None, "Failed to fetch image")
+            return (camera, None, "Failed to fetch image", None)
 
         # Run detection
         result = detector.detect_from_bytes(image_bytes, camera.camera_id)
-        return (camera, result, None)
+
+        # If detections found and image storage is available, upload annotated image
+        image_url = None
+        if result and result.waymo_count > 0 and image_storage and result.original_image:
+            timestamp = datetime.now(timezone.utc)
+            annotated = annotate_image(result.original_image, result.detections)
+            compressed = compress_image(annotated)
+            image_url = image_storage.upload_image(compressed, camera.camera_id, timestamp)
+
+        return (camera, result, None, image_url)
 
     except Exception as e:
-        return (camera, None, str(e))
+        return (camera, None, str(e), None)
 
 
 def run_scan():
@@ -58,6 +70,7 @@ def run_scan():
     # Initialize components
     print("Initializing components...")
     db = Database(config.supabase_url, config.supabase_key)
+    image_storage = ImageStorage(db.client)
     detector = WaymoDetector(
         model_path=config.model_path,
         model_url=config.model_url,
@@ -104,13 +117,14 @@ def run_scan():
                     camera,
                     camera_fetcher,
                     detector,
+                    image_storage,
                 ): camera
                 for camera in cameras
             }
 
             # Process results as they complete
             for future in as_completed(futures):
-                camera, result, error = future.result()
+                camera, result, error, image_url = future.result()
 
                 if error:
                     cameras_failed += 1
@@ -123,12 +137,13 @@ def run_scan():
                     if result and result.waymo_count > 0:
                         total_waymo_count += result.waymo_count
                         cameras_with_waymos += 1
+                        image_status = " [img saved]" if image_url else ""
                         print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
                               f"Camera {camera.camera_id}: {result.waymo_count} Waymo(s) detected "
-                              f"(avg conf: {result.avg_confidence:.2f})")
+                              f"(avg conf: {result.avg_confidence:.2f}){image_status}")
 
-                        # Insert detection record
-                        db.insert_detection(scan_id, result)
+                        # Insert detection record with image URL
+                        db.insert_detection(scan_id, result, image_url)
                     else:
                         print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
                               f"Camera {camera.camera_id}: No Waymos")

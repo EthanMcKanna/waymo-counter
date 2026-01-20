@@ -80,6 +80,7 @@ class Database:
         self,
         scan_id: str,
         result: DetectionResult,
+        image_url: Optional[str] = None,
     ):
         """
         Insert a detection record.
@@ -87,6 +88,7 @@ class Database:
         Args:
             scan_id: The parent scan UUID
             result: Detection result from the detector
+            image_url: URL of the annotated detection image (optional)
         """
         # Only insert if there were detections
         if result.waymo_count == 0:
@@ -105,6 +107,7 @@ class Database:
             "waymo_count": result.waymo_count,
             "avg_confidence": round(result.avg_confidence, 4) if result.avg_confidence else None,
             "detections_json": detections_json,
+            "image_url": image_url,
         }
 
         self.client.table("detections").insert(data).execute()

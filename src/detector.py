@@ -30,6 +30,7 @@ class DetectionResult:
     waymo_count: int
     detections: list[Detection]
     avg_confidence: Optional[float]
+    original_image: Optional[Image.Image] = None
 
 
 class WaymoDetector:
@@ -116,6 +117,7 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
+            original_image=image,
         )
 
     def detect_from_pil(self, image: Image.Image, camera_id: str) -> DetectionResult:
@@ -160,4 +162,5 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
+            original_image=image,
         )
