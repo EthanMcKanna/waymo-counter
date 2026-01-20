@@ -14,6 +14,6 @@ services:
       - key: MODEL_URL
         value: https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt
       - key: CONFIDENCE_THRESHOLD
-        value: "0.25"
+        value: "0.50"
       - key: MAX_WORKERS
         value: "3"
