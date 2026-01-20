@@ -47,7 +47,7 @@ def load_config() -> Config:
     # Model stored in models/ directory
     model_path = Path(__file__).parent.parent / "models" / "best.pt"
 
-    confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.25"))
+    confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.50"))
     max_workers = int(os.environ.get("MAX_WORKERS", "3"))
 
     return Config(
