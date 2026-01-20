@@ -30,7 +30,6 @@ class DetectionResult:
     waymo_count: int
     detections: list[Detection]
     avg_confidence: Optional[float]
-    original_image: Optional[Image.Image] = None
 
 
 class WaymoDetector:
@@ -95,6 +94,9 @@ class WaymoDetector:
             verbose=False,
         )
 
+        # Close image to free memory
+        image.close()
+
         # Process results
         detections = []
         for result in results:
@@ -117,8 +119,6 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
-            # Only store image if there are detections to avoid memory bloat
-            original_image=image if detections else None,
         )
 
     def detect_from_pil(self, image: Image.Image, camera_id: str) -> DetectionResult:
@@ -163,6 +163,4 @@ class WaymoDetector:
             waymo_count=len(detections),
             detections=detections,
             avg_confidence=avg_conf,
-            # Only store image if there are detections to avoid memory bloat
-            original_image=image if detections else None,
         )

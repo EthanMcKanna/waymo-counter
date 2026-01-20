@@ -43,15 +43,25 @@ def process_camera(
 
         # If detections found and image storage is available, upload annotated image
         image_url = None
-        if result and result.waymo_count > 0 and image_storage and result.original_image:
+        if result and result.waymo_count > 0 and image_storage:
+            from io import BytesIO
+            from PIL import Image
+
             timestamp = datetime.now(timezone.utc)
-            annotated = annotate_image(result.original_image, result.detections)
+            # Load image from bytes only when we need to annotate
+            image = Image.open(BytesIO(image_bytes))
+            annotated = annotate_image(image, result.detections)
             compressed = compress_image(annotated)
             image_url = image_storage.upload_image(compressed, camera.camera_id, timestamp)
-            # Clear image references to free memory
-            result.original_image = None
+            # Explicitly close and delete image objects to free memory
+            image.close()
+            annotated.close()
+            del image
             del annotated
             del compressed
+
+        # Clear image_bytes to free memory
+        del image_bytes
 
         return (camera, result, None, image_url)
 
