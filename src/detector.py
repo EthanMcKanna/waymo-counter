@@ -9,7 +9,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import Optional
 
-import httpx
 from PIL import Image
 from ultralytics import YOLO
 
@@ -47,20 +46,15 @@ class WaymoDetector:
         self.model: Optional[YOLO] = None
 
     def ensure_model(self):
-        """Download the model if it doesn't exist locally."""
+        """Ensure the model exists locally."""
         if self.model_path.exists():
             return
 
-        print(f"Downloading model from {self.model_url}...")
-        self.model_path.parent.mkdir(parents=True, exist_ok=True)
-
-        response = httpx.get(self.model_url, follow_redirects=True, timeout=120.0)
-        response.raise_for_status()
-
-        with open(self.model_path, "wb") as f:
-            f.write(response.content)
-
-        print(f"Model downloaded to {self.model_path}")
+        raise FileNotFoundError(
+            f"Model weights not found at {self.model_path}. "
+            "Download them during build with `python scripts/download_model.py` "
+            "or place the weights there before starting the scan."
+        )
 
     def load_model(self):
         """Load the YOLO model."""

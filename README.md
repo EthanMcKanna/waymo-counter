@@ -1,11 +1,11 @@
 # Waymo Counter
 
-Automated Waymo vehicle detection from Austin CCTV cameras. Runs every 10 minutes on Render.com and uploads results to Supabase.
+Automated Waymo vehicle detection from Austin CCTV cameras. Runs every 5 minutes on Render.com, uploads results to Supabase, and tags detections as inside or outside the current known service area.
 
 ## Features
 
 - Fetches active cameras from Austin's public CCTV API
-- Filters to Waymo service area using point-in-polygon
+- Tags cameras relative to the known Waymo service area
 - Runs YOLO detection on each camera image
 - Stores results in Supabase for analysis
 
@@ -37,9 +37,10 @@ waymo-counter/
 |----------|----------|-------------|
 | `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_KEY` | Yes | Service role key (not anon) |
-| `MODEL_URL` | No | URL to download model weights |
+| `MODEL_URL` | No | URL to download model weights during build |
 | `CONFIDENCE_THRESHOLD` | No | Min detection confidence (default: 0.50) |
-| `MAX_WORKERS` | No | Concurrent threads (default: 3) |
+| `FETCH_WORKERS` | No | Concurrent image fetchers (default: 8 x CPU count, min 8) |
+| `SCAN_SCOPE` | No | `all` to scan every active camera, `service_area` for the old boundary-only mode |
 
 ## Supabase Schema
 
@@ -91,7 +92,8 @@ CREATE TABLE cameras (
 3. Activate: `source .venv/bin/activate`
 4. Install dependencies: `pip install -r requirements.txt`
 5. Copy `.env.example` to `.env` and fill in values
-6. Run: `python -m src.main`
+6. Download weights: `python scripts/download_model.py`
+7. Run: `python -m src.main`
 
 ## Deployment
 
@@ -101,6 +103,7 @@ CREATE TABLE cameras (
 4. Set environment variables in Render dashboard
 5. Upload model weights to GitHub Releases
 6. Update `MODEL_URL` in render.yaml or Render dashboard
+7. Ensure the build command downloads the model into `models/best.pt`
 
 ## Model Hosting
 
@@ -110,4 +113,13 @@ The YOLO model weights (~18MB) should be hosted on GitHub Releases:
 2. Upload `best.pt` as a release asset
 3. Set `MODEL_URL` to the download URL
 
-The service downloads the model on first run and caches it locally.
+The model is downloaded during the Render build so each cron run can start
+immediately without a runtime weight fetch.
+
+## Expansion Monitoring
+
+By default the scanner now processes all active Austin cameras and tags each one
+as `inside_service_area` or `outside_service_area` based on the hardcoded Waymo
+polygon in `src/service_area.py`.
+Positive images are saved under matching storage prefixes so likely expansion
+hits are easy to review separately.

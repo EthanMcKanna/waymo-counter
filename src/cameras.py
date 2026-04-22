@@ -1,8 +1,8 @@
 """
 Austin CCTV Camera Management
 
-Fetches active cameras from the Austin traffic camera API and filters
-them to the Waymo service area.
+Fetches active cameras from the Austin traffic camera API and tags them
+relative to the known Waymo service area.
 """
 
 from dataclasses import dataclass
@@ -24,6 +24,12 @@ class Camera:
     longitude: Optional[float]
     latitude: Optional[float]
     council_district: Optional[int]
+    is_in_service_area: bool
+
+    @property
+    def area_label(self) -> str:
+        """Human-readable area label for logs and storage paths."""
+        return "inside_service_area" if self.is_in_service_area else "outside_service_area"
 
 
 class CameraFetcher:
@@ -39,7 +45,7 @@ class CameraFetcher:
             follow_redirects=True,
         )
 
-    def fetch_active_cameras(self, filter_to_service_area: bool = True) -> list[Camera]:
+    def fetch_active_cameras(self, filter_to_service_area: bool = False) -> list[Camera]:
         """
         Fetch list of active cameras from Austin API.
 
@@ -65,13 +71,13 @@ class CameraFetcher:
 
             lon = coords[0] if coords and len(coords) >= 2 else None
             lat = coords[1] if coords and len(coords) >= 2 else None
+            is_in_service_area = (
+                lon is not None and lat is not None and point_in_polygon(lon, lat)
+            )
 
             # Skip if filtering and camera is outside service area
-            if filter_to_service_area:
-                if lon is None or lat is None:
-                    continue
-                if not point_in_polygon(lon, lat):
-                    continue
+            if filter_to_service_area and not is_in_service_area:
+                continue
 
             # Parse council_district - may be "4, 7" for multiple districts
             council_district = None
@@ -90,6 +96,7 @@ class CameraFetcher:
                 longitude=lon,
                 latitude=lat,
                 council_district=council_district,
+                is_in_service_area=is_in_service_area,
             )
             cameras.append(camera)
 

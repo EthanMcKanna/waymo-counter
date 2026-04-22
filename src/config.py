@@ -23,7 +23,8 @@ class Config:
 
     # Detection
     confidence_threshold: float
-    max_workers: int
+    fetch_workers: int
+    scan_scope: str
 
     # Austin CCTV API
     cctv_api_base: str = "https://data.austintexas.gov/resource/b4k4-adkb.json"
@@ -48,7 +49,21 @@ def load_config() -> Config:
     model_path = Path(__file__).parent.parent / "models" / "best.pt"
 
     confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.50"))
-    max_workers = int(os.environ.get("MAX_WORKERS", "3"))
+
+    detected_cpu_count = max(
+        1,
+        int(float(os.environ.get("RENDER_CPU_COUNT", os.cpu_count() or 1))),
+    )
+    default_fetch_workers = min(32, max(8, detected_cpu_count * 8))
+    fetch_workers = int(
+        os.environ.get(
+            "FETCH_WORKERS",
+            os.environ.get("MAX_WORKERS", str(default_fetch_workers)),
+        )
+    )
+    scan_scope = os.environ.get("SCAN_SCOPE", "all").strip().lower()
+    if scan_scope not in {"all", "service_area"}:
+        raise ValueError("SCAN_SCOPE must be either 'all' or 'service_area'")
 
     return Config(
         supabase_url=supabase_url,
@@ -56,5 +71,6 @@ def load_config() -> Config:
         model_url=model_url,
         model_path=model_path,
         confidence_threshold=confidence_threshold,
-        max_workers=max_workers,
+        fetch_workers=fetch_workers,
+        scan_scope=scan_scope,
     )

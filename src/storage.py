@@ -28,6 +28,7 @@ class ImageStorage:
         self,
         image_bytes: bytes,
         camera_id: str,
+        area_label: str,
         timestamp: Optional[datetime] = None,
     ) -> Optional[str]:
         """
@@ -36,6 +37,7 @@ class ImageStorage:
         Args:
             image_bytes: JPEG image bytes to upload
             camera_id: Camera identifier for organizing files
+            area_label: Area bucket for organizing files
             timestamp: Timestamp for the image (defaults to now)
 
         Returns:
@@ -44,10 +46,10 @@ class ImageStorage:
         if timestamp is None:
             timestamp = datetime.now(timezone.utc)
 
-        # Build path: detections/{camera_id}/{YYYY-MM-DD}/{timestamp}.jpg
+        # Build path: detections/{area_label}/{camera_id}/{YYYY-MM-DD}/{timestamp}.jpg
         date_str = timestamp.strftime("%Y-%m-%d")
         time_str = timestamp.strftime("%H%M%S")
-        file_path = f"detections/{camera_id}/{date_str}/{time_str}.jpg"
+        file_path = f"detections/{area_label}/{camera_id}/{date_str}/{time_str}.jpg"
 
         try:
             # Upload to Supabase Storage

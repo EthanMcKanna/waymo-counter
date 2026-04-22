@@ -2,7 +2,7 @@
 Waymo Counter - Main Orchestration Script
 
 This is the entry point for the cron job. It:
-1. Fetches active cameras within the Waymo service area
+1. Fetches active cameras and tags them relative to the Waymo service area
 2. Downloads images and runs YOLO detection
 3. Uploads results to Supabase
 """
@@ -20,9 +20,21 @@ from .image_annotator import annotate_image, compress_image
 from .storage import ImageStorage
 
 
-def process_camera(
+def fetch_camera_image(
     camera: Camera,
     camera_fetcher: CameraFetcher,
+) -> tuple[Camera, bytes | None, str | None]:
+    """Fetch a single camera image."""
+    image_bytes = camera_fetcher.fetch_image(camera.camera_id)
+    if image_bytes is None:
+        return (camera, None, "Failed to fetch image")
+
+    return (camera, image_bytes, None)
+
+
+def process_fetched_camera(
+    camera: Camera,
+    image_bytes: bytes,
     detector: WaymoDetector,
     image_storage: ImageStorage | None = None,
 ) -> tuple[Camera, DetectionResult | None, str | None, str | None]:
@@ -33,11 +45,6 @@ def process_camera(
         Tuple of (camera, detection_result, error_message, image_url)
     """
     try:
-        # Fetch image
-        image_bytes = camera_fetcher.fetch_image(camera.camera_id)
-        if image_bytes is None:
-            return (camera, None, "Failed to fetch image", None)
-
         # Run detection
         result = detector.detect_from_bytes(image_bytes, camera.camera_id)
 
@@ -52,7 +59,12 @@ def process_camera(
             image = Image.open(BytesIO(image_bytes))
             annotated = annotate_image(image, result.detections)
             compressed = compress_image(annotated)
-            image_url = image_storage.upload_image(compressed, camera.camera_id, timestamp)
+            image_url = image_storage.upload_image(
+                compressed,
+                camera.camera_id,
+                camera.area_label,
+                timestamp,
+            )
             # Explicitly close and delete image objects to free memory
             image.close()
             annotated.close()
@@ -70,7 +82,7 @@ def process_camera(
 
 
 def run_scan():
-    """Run a complete scan of all cameras in the Waymo service area."""
+    """Run a complete scan of the configured camera scope."""
     start_time = time.time()
 
     print("=" * 60)
@@ -98,8 +110,20 @@ def run_scan():
     # Fetch cameras
     print("\nFetching active cameras...")
     with CameraFetcher() as camera_fetcher:
-        cameras = camera_fetcher.fetch_active_cameras(filter_to_service_area=True)
-        print(f"Found {len(cameras)} cameras in Waymo service area")
+        filter_to_service_area = config.scan_scope == "service_area"
+        cameras = camera_fetcher.fetch_active_cameras(
+            filter_to_service_area=filter_to_service_area
+        )
+        inside_cameras = sum(1 for camera in cameras if camera.is_in_service_area)
+        outside_cameras = len(cameras) - inside_cameras
+
+        if filter_to_service_area:
+            print(f"Found {len(cameras)} cameras in the current Waymo service area")
+        else:
+            print(
+                f"Found {len(cameras)} active cameras "
+                f"({inside_cameras} inside area, {outside_cameras} outside area)"
+            )
 
         if not cameras:
             print("No cameras found. Exiting.")
@@ -116,51 +140,74 @@ def run_scan():
         print(f"Created scan record: {scan_id}")
 
         # Process cameras with thread pool
-        print(f"\nProcessing cameras with {config.max_workers} workers...")
+        print(f"\nFetching with {config.fetch_workers} workers and running inference inline...")
         cameras_scanned = 0
         cameras_failed = 0
         total_waymo_count = 0
         cameras_with_waymos = 0
+        inside_area_waymo_count = 0
+        outside_area_waymo_count = 0
+        inside_area_cameras_with_waymos = 0
+        outside_area_cameras_with_waymos = 0
         processed_cameras: list[Camera] = []
+        batched_detections: list[tuple[DetectionResult, str | None]] = []
 
-        with ThreadPoolExecutor(max_workers=config.max_workers) as executor:
-            # Submit all tasks
+        with ThreadPoolExecutor(max_workers=config.fetch_workers) as executor:
             futures = {
                 executor.submit(
-                    process_camera,
+                    fetch_camera_image,
                     camera,
                     camera_fetcher,
-                    detector,
-                    image_storage,
                 ): camera
                 for camera in cameras
             }
 
-            # Process results as they complete
             for future in as_completed(futures):
-                camera, result, error, image_url = future.result()
+                camera, image_bytes, fetch_error = future.result()
 
-                if error:
+                if fetch_error or image_bytes is None:
                     cameras_failed += 1
                     print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                          f"Camera {camera.camera_id}: ERROR - {error}")
+                          f"Camera {camera.camera_id}: ERROR - {fetch_error}")
                 else:
-                    cameras_scanned += 1
-                    processed_cameras.append(camera)
+                    camera, result, error, image_url = process_fetched_camera(
+                        camera,
+                        image_bytes,
+                        detector,
+                        image_storage,
+                    )
+                    del image_bytes
 
-                    if result and result.waymo_count > 0:
-                        total_waymo_count += result.waymo_count
-                        cameras_with_waymos += 1
-                        image_status = " [img saved]" if image_url else ""
+                    if error:
+                        cameras_failed += 1
                         print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                              f"Camera {camera.camera_id}: {result.waymo_count} Waymo(s) detected "
-                              f"(avg conf: {result.avg_confidence:.2f}){image_status}")
-
-                        # Insert detection record with image URL
-                        db.insert_detection(scan_id, result, image_url)
+                              f"Camera {camera.camera_id}: ERROR - {error}")
                     else:
-                        print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                              f"Camera {camera.camera_id}: No Waymos")
+                        cameras_scanned += 1
+                        processed_cameras.append(camera)
+
+                        if result and result.waymo_count > 0:
+                            total_waymo_count += result.waymo_count
+                            cameras_with_waymos += 1
+                            batched_detections.append((result, image_url))
+                            if camera.is_in_service_area:
+                                inside_area_waymo_count += result.waymo_count
+                                inside_area_cameras_with_waymos += 1
+                            else:
+                                outside_area_waymo_count += result.waymo_count
+                                outside_area_cameras_with_waymos += 1
+                            image_status = " [img saved]" if image_url else ""
+                            print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
+                                  f"Camera {camera.camera_id} [{camera.area_label}]: "
+                                  f"{result.waymo_count} Waymo(s) detected "
+                                  f"(avg conf: {result.avg_confidence:.2f}){image_status}")
+                        else:
+                            print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
+                                  f"Camera {camera.camera_id} [{camera.area_label}]: No Waymos")
+
+        if batched_detections:
+            print(f"\nWriting {len(batched_detections)} detection records...")
+            db.insert_detections(scan_id, batched_detections)
 
         # Calculate duration
         duration = time.time() - start_time
@@ -185,10 +232,20 @@ def run_scan():
     print("=" * 60)
     print(f"Scan ID: {scan_id}")
     print(f"Total cameras: {len(cameras)}")
+    print(f"Cameras inside current area: {inside_cameras}")
+    print(f"Cameras outside current area: {outside_cameras}")
     print(f"Cameras scanned: {cameras_scanned}")
     print(f"Cameras failed: {cameras_failed}")
     print(f"Total Waymos detected: {total_waymo_count}")
     print(f"Cameras with Waymos: {cameras_with_waymos}")
+    print(
+        f"Inside-area detections: {inside_area_waymo_count} across "
+        f"{inside_area_cameras_with_waymos} cameras"
+    )
+    print(
+        f"Outside-area detections: {outside_area_waymo_count} across "
+        f"{outside_area_cameras_with_waymos} cameras"
+    )
     print(f"Duration: {duration:.2f} seconds")
     print("=" * 60)
 

@@ -4,10 +4,8 @@ Supabase Database Client
 Handles all database operations for storing scan results and detections.
 """
 
-from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
-from uuid import UUID
 
 from supabase import create_client, Client
 
@@ -94,23 +92,23 @@ class Database:
         if result.waymo_count == 0:
             return
 
-        # Convert detections to JSON-serializable format
-        detections_json = [
-            {"confidence": d.confidence, "bbox": d.bbox}
-            for d in result.detections
+        self.insert_detections(scan_id, [(result, image_url)])
+
+    def insert_detections(
+        self,
+        scan_id: str,
+        detections: list[tuple[DetectionResult, Optional[str]]],
+    ):
+        """Insert multiple detection records in a single request."""
+        rows = [
+            self._serialize_detection(scan_id, result, image_url)
+            for result, image_url in detections
+            if result.waymo_count > 0
         ]
+        if not rows:
+            return
 
-        data = {
-            "scan_id": scan_id,
-            "camera_id": result.camera_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "waymo_count": result.waymo_count,
-            "avg_confidence": round(result.avg_confidence, 4) if result.avg_confidence else None,
-            "detections_json": detections_json,
-            "image_url": image_url,
-        }
-
-        self.client.table("detections").insert(data).execute()
+        self.client.table("detections").insert(rows).execute()
 
     def upsert_camera(self, camera: Camera):
         """
@@ -158,3 +156,24 @@ class Database:
         for i in range(0, len(data), batch_size):
             batch = data[i:i + batch_size]
             self.client.table("cameras").upsert(batch, on_conflict="camera_id").execute()
+
+    @staticmethod
+    def _serialize_detection(
+        scan_id: str,
+        result: DetectionResult,
+        image_url: Optional[str],
+    ) -> dict:
+        detections_json = [
+            {"confidence": d.confidence, "bbox": d.bbox}
+            for d in result.detections
+        ]
+
+        return {
+            "scan_id": scan_id,
+            "camera_id": result.camera_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "waymo_count": result.waymo_count,
+            "avg_confidence": round(result.avg_confidence, 4) if result.avg_confidence else None,
+            "detections_json": detections_json,
+            "image_url": image_url,
+        }
