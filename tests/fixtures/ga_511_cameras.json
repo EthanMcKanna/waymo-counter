@@ -1,0 +1,69 @@
+{
+  "draw": 0,
+  "recordsTotal": 2,
+  "recordsFiltered": 2,
+  "data": [
+    {
+      "DT_RowId": "15035",
+      "images": [
+        {
+          "id": 22445,
+          "cameraSiteId": 15035,
+          "description": "COBB-1030: Akers Mill Rd at Overton Park Dr",
+          "imageUrl": "/map/Cctv/22445",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 15035,
+      "sourceId": "13273",
+      "source": "SKYLINE",
+      "roadway": "Akers Mill Rd",
+      "direction": "Eastbound",
+      "location": "COBB-1030: Akers Mill Rd at Overton Park Dr",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-84.4571 33.8871)"
+        }
+      },
+      "region": null,
+      "state": "Georgia",
+      "county": null,
+      "city": null,
+      "dotDistrict": null,
+      "country": "United States"
+    },
+    {
+      "DT_RowId": "19000",
+      "images": [
+        {
+          "id": 30000,
+          "cameraSiteId": 19000,
+          "description": "Savannah Camera",
+          "imageUrl": "/map/Cctv/30000",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 19000,
+      "sourceId": "19000",
+      "source": "SKYLINE",
+      "roadway": "I-16",
+      "direction": "Eastbound",
+      "location": "Savannah Camera",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-81.1 32.08)"
+        }
+      },
+      "region": null,
+      "state": "Georgia",
+      "county": null,
+      "city": null,
+      "dotDistrict": null,
+      "country": "United States"
+    }
+  ]
+}

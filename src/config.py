@@ -4,31 +4,53 @@ Configuration Management
 Loads environment variables and provides configuration for the application.
 """
 
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+from .cameras import DEFAULT_ENABLED_MARKETS, MARKET_SPECS
 
 
 @dataclass
 class Config:
     """Application configuration."""
 
-    # Supabase
     supabase_url: str
     supabase_key: str
-
-    # Model
     model_url: str
     model_path: Path
-
-    # Detection
     confidence_threshold: float
     fetch_workers: int
     scan_scope: str
+    enabled_markets: list[str]
 
-    # Austin CCTV API
-    cctv_api_base: str = "https://data.austintexas.gov/resource/b4k4-adkb.json"
-    cctv_image_base: str = "https://cctv.austinmobility.io/image"
+
+def _parse_enabled_markets(raw_value: str) -> list[str]:
+    if not raw_value.strip():
+        raise ValueError("ENABLED_MARKETS cannot be empty")
+
+    markets: list[str] = []
+    seen: set[str] = set()
+
+    for part in raw_value.split(","):
+        market = part.strip().lower()
+        if not market:
+            continue
+        if market not in MARKET_SPECS:
+            supported = ", ".join(DEFAULT_ENABLED_MARKETS)
+            raise ValueError(
+                f"Unsupported market '{market}'. Supported markets: {supported}"
+            )
+        if market not in seen:
+            seen.add(market)
+            markets.append(market)
+
+    if not markets:
+        raise ValueError("ENABLED_MARKETS did not contain any valid markets")
+
+    return markets
 
 
 def load_config() -> Config:
@@ -42,12 +64,9 @@ def load_config() -> Config:
 
     model_url = os.environ.get(
         "MODEL_URL",
-        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt"
+        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt",
     )
-
-    # Model stored in models/ directory
     model_path = Path(__file__).parent.parent / "models" / "best.pt"
-
     confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.50"))
 
     detected_cpu_count = max(
@@ -61,9 +80,14 @@ def load_config() -> Config:
             os.environ.get("MAX_WORKERS", str(default_fetch_workers)),
         )
     )
+
     scan_scope = os.environ.get("SCAN_SCOPE", "all").strip().lower()
     if scan_scope not in {"all", "service_area"}:
         raise ValueError("SCAN_SCOPE must be either 'all' or 'service_area'")
+
+    enabled_markets = _parse_enabled_markets(
+        os.environ.get("ENABLED_MARKETS", ",".join(DEFAULT_ENABLED_MARKETS))
+    )
 
     return Config(
         supabase_url=supabase_url,
@@ -73,4 +97,5 @@ def load_config() -> Config:
         confidence_threshold=confidence_threshold,
         fetch_workers=fetch_workers,
         scan_scope=scan_scope,
+        enabled_markets=enabled_markets,
     )

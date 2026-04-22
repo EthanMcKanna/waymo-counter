@@ -2,7 +2,7 @@ services:
   - type: cron
     name: waymo-counter
     runtime: python
-    schedule: "*/5 * * * *"
+    schedule: "*/30 * * * *"
     buildCommand: pip install -r requirements.txt && python scripts/download_model.py
     startCommand: python -m src.main
     plan: pro
@@ -19,3 +19,5 @@ services:
         value: "16"
       - key: SCAN_SCOPE
         value: "all"
+      - key: ENABLED_MARKETS
+        value: "austin,san_antonio,dallas,houston,atlanta,orlando,miami,phoenix"

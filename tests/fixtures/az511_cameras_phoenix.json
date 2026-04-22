@@ -1,0 +1,69 @@
+{
+  "draw": 0,
+  "recordsTotal": 2,
+  "recordsFiltered": 2,
+  "data": [
+    {
+      "DT_RowId": "1701",
+      "images": [
+        {
+          "id": 1701,
+          "cameraSiteId": 1701,
+          "description": "I-10 @ 67th Ave",
+          "imageUrl": "/map/Cctv/1701",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 1701,
+      "sourceId": "1701",
+      "source": "AZDOT",
+      "roadway": "I-10",
+      "direction": "",
+      "location": "I-10 @ 67th Ave",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-112.202 33.448)"
+        }
+      },
+      "region": "Arizona Statewide",
+      "state": "Arizona",
+      "county": "Maricopa",
+      "city": "Phoenix",
+      "dotDistrict": null,
+      "country": "United States"
+    },
+    {
+      "DT_RowId": "2701",
+      "images": [
+        {
+          "id": 2701,
+          "cameraSiteId": 2701,
+          "description": "I-10 @ Wilcox",
+          "imageUrl": "/map/Cctv/2701",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 2701,
+      "sourceId": "2701",
+      "source": "AZDOT",
+      "roadway": "I-10",
+      "direction": "",
+      "location": "I-10 @ Wilcox",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-109.755 32.341)"
+        }
+      },
+      "region": "Arizona Statewide",
+      "state": "Arizona",
+      "county": "Cochise",
+      "city": "Willcox",
+      "dotDistrict": null,
+      "country": "United States"
+    }
+  ]
+}

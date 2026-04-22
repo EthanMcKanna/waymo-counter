@@ -2,13 +2,16 @@
 Waymo Counter - Main Orchestration Script
 
 This is the entry point for the cron job. It:
-1. Fetches active cameras and tags them relative to the Waymo service area
+1. Fetches active cameras across enabled markets
 2. Downloads images and runs YOLO detection
 3. Uploads results to Supabase
 """
 
+from __future__ import annotations
+
 import sys
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -24,11 +27,9 @@ def fetch_camera_image(
     camera: Camera,
     camera_fetcher: CameraFetcher,
 ) -> tuple[Camera, bytes | None, str | None]:
-    """Fetch a single camera image."""
-    image_bytes = camera_fetcher.fetch_image(camera.camera_id)
+    image_bytes = camera_fetcher.fetch_image(camera)
     if image_bytes is None:
         return (camera, None, "Failed to fetch image")
-
     return (camera, image_bytes, None)
 
 
@@ -38,62 +39,48 @@ def process_fetched_camera(
     detector: WaymoDetector,
     image_storage: ImageStorage | None = None,
 ) -> tuple[Camera, DetectionResult | None, str | None, str | None]:
-    """
-    Process a single camera: fetch image, run detection, and optionally upload annotated image.
-
-    Returns:
-        Tuple of (camera, detection_result, error_message, image_url)
-    """
     try:
-        # Run detection
-        result = detector.detect_from_bytes(image_bytes, camera.camera_id)
+        result = detector.detect_from_bytes(
+            image_bytes,
+            camera_key=camera.camera_key,
+            camera_id=camera.camera_id,
+            market=camera.market,
+            source=camera.source,
+        )
 
-        # If detections found and image storage is available, upload annotated image
         image_url = None
-        if result and result.waymo_count > 0 and image_storage:
+        if result.waymo_count > 0 and image_storage:
             from io import BytesIO
             from PIL import Image
 
             timestamp = datetime.now(timezone.utc)
-            # Load image from bytes only when we need to annotate
             image = Image.open(BytesIO(image_bytes))
             annotated = annotate_image(image, result.detections)
             compressed = compress_image(annotated)
-            image_url = image_storage.upload_image(
-                compressed,
-                camera.camera_id,
-                camera.area_label,
-                timestamp,
-            )
-            # Explicitly close and delete image objects to free memory
+            image_url = image_storage.upload_image(compressed, camera, timestamp)
             image.close()
             annotated.close()
             del image
             del annotated
             del compressed
 
-        # Clear image_bytes to free memory
         del image_bytes
-
         return (camera, result, None, image_url)
-
-    except Exception as e:
-        return (camera, None, str(e), None)
+    except Exception as exc:
+        return (camera, None, str(exc), None)
 
 
 def run_scan():
-    """Run a complete scan of the configured camera scope."""
     start_time = time.time()
 
     print("=" * 60)
     print(f"Waymo Counter Scan - {datetime.now(timezone.utc).isoformat()}")
     print("=" * 60)
 
-    # Load configuration
     print("\nLoading configuration...")
     config = load_config()
+    print(f"Enabled markets: {', '.join(config.enabled_markets)}")
 
-    # Initialize components
     print("Initializing components...")
     db = Database(config.supabase_url, config.supabase_key)
     image_storage = ImageStorage(db.client)
@@ -103,33 +90,31 @@ def run_scan():
         confidence_threshold=config.confidence_threshold,
     )
 
-    # Pre-load the model
     print("Loading detection model...")
     detector.load_model()
 
-    # Fetch cameras
     print("\nFetching active cameras...")
-    with CameraFetcher() as camera_fetcher:
-        filter_to_service_area = config.scan_scope == "service_area"
-        cameras = camera_fetcher.fetch_active_cameras(
-            filter_to_service_area=filter_to_service_area
-        )
-        inside_cameras = sum(1 for camera in cameras if camera.is_in_service_area)
-        outside_cameras = len(cameras) - inside_cameras
-
-        if filter_to_service_area:
-            print(f"Found {len(cameras)} cameras in the current Waymo service area")
-        else:
-            print(
-                f"Found {len(cameras)} active cameras "
-                f"({inside_cameras} inside area, {outside_cameras} outside area)"
-            )
-
+    with CameraFetcher(config=config) as camera_fetcher:
+        cameras = camera_fetcher.fetch_active_cameras()
         if not cameras:
             print("No cameras found. Exiting.")
             return
 
-        # Create initial scan record
+        total_cameras_by_market: dict[str, int] = defaultdict(int)
+        for camera in cameras:
+            total_cameras_by_market[camera.market] += 1
+
+        austin_cameras = [camera for camera in cameras if camera.market == "austin"]
+        austin_inside = sum(1 for camera in austin_cameras if camera.is_in_service_area)
+        austin_outside = len(austin_cameras) - austin_inside
+
+        print(f"Found {len(cameras)} active cameras across {len(total_cameras_by_market)} markets")
+        for market, total in sorted(total_cameras_by_market.items()):
+            print(f"  {market}: {total} camera(s)")
+        if austin_cameras:
+            print(f"  austin inside service area: {austin_inside}")
+            print(f"  austin outside service area: {austin_outside}")
+
         scan_id = db.create_scan(
             total_cameras=len(cameras),
             cameras_scanned=0,
@@ -139,8 +124,20 @@ def run_scan():
         )
         print(f"Created scan record: {scan_id}")
 
-        # Process cameras with thread pool
-        print(f"\nFetching with {config.fetch_workers} workers and running inference inline...")
+        market_stats: dict[str, dict] = {
+            market: {
+                "market": market,
+                "total_cameras": total,
+                "cameras_scanned": 0,
+                "cameras_failed": 0,
+                "total_waymo_count": 0,
+                "cameras_with_waymos": 0,
+                "duration_seconds": 0.0,
+            }
+            for market, total in total_cameras_by_market.items()
+        }
+        market_start_times = {market: time.time() for market in total_cameras_by_market}
+
         cameras_scanned = 0
         cameras_failed = 0
         total_waymo_count = 0
@@ -149,70 +146,88 @@ def run_scan():
         outside_area_waymo_count = 0
         inside_area_cameras_with_waymos = 0
         outside_area_cameras_with_waymos = 0
-        processed_cameras: list[Camera] = []
         batched_detections: list[tuple[DetectionResult, str | None]] = []
 
+        print(f"\nFetching with {config.fetch_workers} workers and running inference inline...")
         with ThreadPoolExecutor(max_workers=config.fetch_workers) as executor:
             futures = {
-                executor.submit(
-                    fetch_camera_image,
-                    camera,
-                    camera_fetcher,
-                ): camera
+                executor.submit(fetch_camera_image, camera, camera_fetcher): camera
                 for camera in cameras
             }
 
             for future in as_completed(futures):
                 camera, image_bytes, fetch_error = future.result()
+                market_row = market_stats[camera.market]
+                market_row["duration_seconds"] = time.time() - market_start_times[camera.market]
+                progress = cameras_scanned + cameras_failed
 
                 if fetch_error or image_bytes is None:
                     cameras_failed += 1
-                    print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                          f"Camera {camera.camera_id}: ERROR - {fetch_error}")
-                else:
-                    camera, result, error, image_url = process_fetched_camera(
-                        camera,
-                        image_bytes,
-                        detector,
-                        image_storage,
+                    market_row["cameras_failed"] += 1
+                    print(
+                        f"  [{progress + 1}/{len(cameras)}] "
+                        f"{camera.market}:{camera.camera_id}: ERROR - {fetch_error}"
                     )
-                    del image_bytes
+                    continue
 
-                    if error:
-                        cameras_failed += 1
-                        print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                              f"Camera {camera.camera_id}: ERROR - {error}")
-                    else:
-                        cameras_scanned += 1
-                        processed_cameras.append(camera)
+                camera, result, error, image_url = process_fetched_camera(
+                    camera,
+                    image_bytes,
+                    detector,
+                    image_storage,
+                )
+                del image_bytes
 
-                        if result and result.waymo_count > 0:
-                            total_waymo_count += result.waymo_count
-                            cameras_with_waymos += 1
-                            batched_detections.append((result, image_url))
-                            if camera.is_in_service_area:
-                                inside_area_waymo_count += result.waymo_count
-                                inside_area_cameras_with_waymos += 1
-                            else:
-                                outside_area_waymo_count += result.waymo_count
-                                outside_area_cameras_with_waymos += 1
-                            image_status = " [img saved]" if image_url else ""
-                            print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                                  f"Camera {camera.camera_id} [{camera.area_label}]: "
-                                  f"{result.waymo_count} Waymo(s) detected "
-                                  f"(avg conf: {result.avg_confidence:.2f}){image_status}")
+                market_row["duration_seconds"] = time.time() - market_start_times[camera.market]
+                if error or result is None:
+                    cameras_failed += 1
+                    market_row["cameras_failed"] += 1
+                    print(
+                        f"  [{progress + 1}/{len(cameras)}] "
+                        f"{camera.market}:{camera.camera_id}: ERROR - {error}"
+                    )
+                    continue
+
+                cameras_scanned += 1
+                market_row["cameras_scanned"] += 1
+
+                if result.waymo_count > 0:
+                    total_waymo_count += result.waymo_count
+                    cameras_with_waymos += 1
+                    market_row["total_waymo_count"] += result.waymo_count
+                    market_row["cameras_with_waymos"] += 1
+                    batched_detections.append((result, image_url))
+
+                    if camera.market == "austin":
+                        if camera.is_in_service_area:
+                            inside_area_waymo_count += result.waymo_count
+                            inside_area_cameras_with_waymos += 1
                         else:
-                            print(f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
-                                  f"Camera {camera.camera_id} [{camera.area_label}]: No Waymos")
+                            outside_area_waymo_count += result.waymo_count
+                            outside_area_cameras_with_waymos += 1
+
+                    image_status = " [img saved]" if image_url else ""
+                    print(
+                        f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
+                        f"{camera.market}:{camera.camera_id} [{camera.area_label}]: "
+                        f"{result.waymo_count} Waymo(s) detected "
+                        f"(avg conf: {result.avg_confidence:.2f}){image_status}"
+                    )
+                else:
+                    print(
+                        f"  [{cameras_scanned + cameras_failed}/{len(cameras)}] "
+                        f"{camera.market}:{camera.camera_id} [{camera.area_label}]: No Waymos"
+                    )
 
         if batched_detections:
             print(f"\nWriting {len(batched_detections)} detection records...")
             db.insert_detections(scan_id, batched_detections)
 
-        # Calculate duration
         duration = time.time() - start_time
+        for market in market_stats.values():
+            if market["duration_seconds"] == 0.0:
+                market["duration_seconds"] = duration
 
-        # Update scan record with final results
         db.update_scan(
             scan_id=scan_id,
             cameras_scanned=cameras_scanned,
@@ -221,43 +236,47 @@ def run_scan():
             cameras_with_waymos=cameras_with_waymos,
             duration_seconds=duration,
         )
+        db.insert_market_stats(scan_id, list(market_stats.values()))
 
-        # Bulk upsert camera metadata
         print("\nUpdating camera metadata...")
-        db.bulk_upsert_cameras(processed_cameras)
+        db.bulk_upsert_cameras(cameras)
 
-    # Print summary
     print("\n" + "=" * 60)
     print("SCAN COMPLETE")
     print("=" * 60)
     print(f"Scan ID: {scan_id}")
     print(f"Total cameras: {len(cameras)}")
-    print(f"Cameras inside current area: {inside_cameras}")
-    print(f"Cameras outside current area: {outside_cameras}")
     print(f"Cameras scanned: {cameras_scanned}")
     print(f"Cameras failed: {cameras_failed}")
     print(f"Total Waymos detected: {total_waymo_count}")
     print(f"Cameras with Waymos: {cameras_with_waymos}")
-    print(
-        f"Inside-area detections: {inside_area_waymo_count} across "
-        f"{inside_area_cameras_with_waymos} cameras"
-    )
-    print(
-        f"Outside-area detections: {outside_area_waymo_count} across "
-        f"{outside_area_cameras_with_waymos} cameras"
-    )
+    if austin_cameras:
+        print(f"Austin cameras inside current area: {austin_inside}")
+        print(f"Austin cameras outside current area: {austin_outside}")
+        print(
+            f"Austin inside-area detections: {inside_area_waymo_count} across "
+            f"{inside_area_cameras_with_waymos} cameras"
+        )
+        print(
+            f"Austin outside-area detections: {outside_area_waymo_count} across "
+            f"{outside_area_cameras_with_waymos} cameras"
+        )
+    print("Per-market summary:")
+    for market in sorted(market_stats):
+        row = market_stats[market]
+        print(
+            f"  {market}: {row['cameras_scanned']} scanned, "
+            f"{row['cameras_failed']} failed, "
+            f"{row['total_waymo_count']} Waymo(s) across "
+            f"{row['cameras_with_waymos']} camera(s)"
+        )
     print(f"Duration: {duration:.2f} seconds")
     print("=" * 60)
 
 
 def main():
-    """Entry point."""
     try:
         run_scan()
-    except Exception as e:
-        print(f"\nFATAL ERROR: {e}", file=sys.stderr)
+    except Exception as exc:
+        print(f"\nFATAL ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

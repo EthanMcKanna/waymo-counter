@@ -1,13 +1,15 @@
 """
 Supabase Database Client
 
-Handles all database operations for storing scan results and detections.
+Handles database operations for scans, detections, and camera metadata.
 """
+
+from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
 
-from supabase import create_client, Client
+from supabase import Client, create_client
 
 from .cameras import Camera
 from .detector import DetectionResult
@@ -28,12 +30,6 @@ class Database:
         cameras_with_waymos: int = 0,
         duration_seconds: Optional[float] = None,
     ) -> str:
-        """
-        Create a new scan record.
-
-        Returns:
-            The UUID of the created scan
-        """
         data = {
             "total_cameras": total_cameras,
             "cameras_scanned": cameras_scanned,
@@ -57,7 +53,6 @@ class Database:
         cameras_with_waymos: Optional[int] = None,
         duration_seconds: Optional[float] = None,
     ):
-        """Update an existing scan record."""
         data = {}
 
         if cameras_scanned is not None:
@@ -80,18 +75,8 @@ class Database:
         result: DetectionResult,
         image_url: Optional[str] = None,
     ):
-        """
-        Insert a detection record.
-
-        Args:
-            scan_id: The parent scan UUID
-            result: Detection result from the detector
-            image_url: URL of the annotated detection image (optional)
-        """
-        # Only insert if there were detections
         if result.waymo_count == 0:
             return
-
         self.insert_detections(scan_id, [(result, image_url)])
 
     def insert_detections(
@@ -99,63 +84,88 @@ class Database:
         scan_id: str,
         detections: list[tuple[DetectionResult, Optional[str]]],
     ):
-        """Insert multiple detection records in a single request."""
         rows = [
             self._serialize_detection(scan_id, result, image_url)
             for result, image_url in detections
             if result.waymo_count > 0
         ]
-        if not rows:
+        if rows:
+            self.client.table("detections").insert(rows).execute()
+
+    def insert_market_stats(self, scan_id: str, stats_rows: list[dict]):
+        if not stats_rows:
             return
 
-        self.client.table("detections").insert(rows).execute()
+        rows = []
+        for row in stats_rows:
+            rows.append(
+                {
+                    "scan_id": scan_id,
+                    "market": row["market"],
+                    "total_cameras": row["total_cameras"],
+                    "cameras_scanned": row["cameras_scanned"],
+                    "cameras_failed": row["cameras_failed"],
+                    "total_waymo_count": row["total_waymo_count"],
+                    "cameras_with_waymos": row["cameras_with_waymos"],
+                    "duration_seconds": round(row["duration_seconds"], 2),
+                }
+            )
+
+        self.client.table("scan_market_stats").upsert(
+            rows,
+            on_conflict="scan_id,market",
+        ).execute()
 
     def upsert_camera(self, camera: Camera):
-        """
-        Upsert camera metadata.
-
-        Args:
-            camera: Camera object with metadata
-        """
-        data = {
-            "camera_id": camera.camera_id,
-            "location_name": camera.location_name,
-            "longitude": camera.longitude,
-            "latitude": camera.latitude,
-            "council_district": camera.council_district,
-            "last_scanned": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        }
-
-        self.client.table("cameras").upsert(data, on_conflict="camera_id").execute()
+        now = datetime.now(timezone.utc).isoformat()
+        self.client.table("cameras").upsert(
+            {
+                "camera_key": camera.camera_key,
+                "camera_id": camera.camera_id,
+                "market": camera.market,
+                "source": camera.source,
+                "location_name": camera.location_name,
+                "longitude": camera.longitude,
+                "latitude": camera.latitude,
+                "council_district": camera.council_district,
+                "image_url": camera.image_url,
+                "is_in_service_area": camera.is_in_service_area,
+                "last_scanned": now,
+                "updated_at": now,
+            },
+            on_conflict="camera_key",
+        ).execute()
 
     def bulk_upsert_cameras(self, cameras: list[Camera]):
-        """
-        Bulk upsert camera metadata.
+        if not cameras:
+            return
 
-        Args:
-            cameras: List of Camera objects
-        """
         now = datetime.now(timezone.utc).isoformat()
-
         data = [
             {
-                "camera_id": c.camera_id,
-                "location_name": c.location_name,
-                "longitude": c.longitude,
-                "latitude": c.latitude,
-                "council_district": c.council_district,
+                "camera_key": camera.camera_key,
+                "camera_id": camera.camera_id,
+                "market": camera.market,
+                "source": camera.source,
+                "location_name": camera.location_name,
+                "longitude": camera.longitude,
+                "latitude": camera.latitude,
+                "council_district": camera.council_district,
+                "image_url": camera.image_url,
+                "is_in_service_area": camera.is_in_service_area,
                 "last_scanned": now,
                 "updated_at": now,
             }
-            for c in cameras
+            for camera in cameras
         ]
 
-        # Supabase has a limit on bulk inserts, batch if needed
         batch_size = 500
-        for i in range(0, len(data), batch_size):
-            batch = data[i:i + batch_size]
-            self.client.table("cameras").upsert(batch, on_conflict="camera_id").execute()
+        for start in range(0, len(data), batch_size):
+            batch = data[start:start + batch_size]
+            self.client.table("cameras").upsert(
+                batch,
+                on_conflict="camera_key",
+            ).execute()
 
     @staticmethod
     def _serialize_detection(
@@ -164,13 +174,16 @@ class Database:
         image_url: Optional[str],
     ) -> dict:
         detections_json = [
-            {"confidence": d.confidence, "bbox": d.bbox}
-            for d in result.detections
+            {"confidence": detection.confidence, "bbox": detection.bbox}
+            for detection in result.detections
         ]
 
         return {
             "scan_id": scan_id,
+            "camera_key": result.camera_key,
             "camera_id": result.camera_id,
+            "market": result.market,
+            "source": result.source,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "waymo_count": result.waymo_count,
             "avg_confidence": round(result.avg_confidence, 4) if result.avg_confidence else None,

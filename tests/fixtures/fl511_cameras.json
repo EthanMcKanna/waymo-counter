@@ -1,0 +1,100 @@
+{
+  "draw": 0,
+  "recordsTotal": 3,
+  "recordsFiltered": 3,
+  "data": [
+    {
+      "DT_RowId": "614",
+      "images": [
+        {
+          "id": 614,
+          "cameraSiteId": 614,
+          "description": "I-4 @ MM 60.6 EB",
+          "imageUrl": "/map/Cctv/614",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 614,
+      "sourceId": "376",
+      "source": "DIVAS-District 5",
+      "roadway": "I-4",
+      "direction": "Eastbound",
+      "location": "I-4 @ MM 60.6 EB",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-81.580975 28.292213)"
+        }
+      },
+      "region": "Central",
+      "state": "Florida",
+      "county": "Osceola",
+      "city": null,
+      "dotDistrict": "District 5",
+      "country": "United States"
+    },
+    {
+      "DT_RowId": "901",
+      "images": [
+        {
+          "id": 901,
+          "cameraSiteId": 901,
+          "description": "I-95 @ NW 79 St",
+          "imageUrl": "/map/Cctv/901",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 901,
+      "sourceId": "901",
+      "source": "DIVAS-District 6",
+      "roadway": "I-95",
+      "direction": "Southbound",
+      "location": "I-95 @ NW 79 St",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-80.1989 25.8486)"
+        }
+      },
+      "region": "South",
+      "state": "Florida",
+      "county": "Miami-Dade",
+      "city": "Miami",
+      "dotDistrict": "District 6",
+      "country": "United States"
+    },
+    {
+      "DT_RowId": "999",
+      "images": [
+        {
+          "id": 999,
+          "cameraSiteId": 999,
+          "description": "Tampa Camera",
+          "imageUrl": "/map/Cctv/999",
+          "disabled": false,
+          "blocked": false
+        }
+      ],
+      "id": 999,
+      "sourceId": "999",
+      "source": "DIVAS-District 7",
+      "roadway": "I-275",
+      "direction": "Northbound",
+      "location": "Tampa Camera",
+      "latLng": {
+        "geography": {
+          "coordinateSystemId": 4326,
+          "wellKnownText": "POINT (-82.461 27.97)"
+        }
+      },
+      "region": "West Central",
+      "state": "Florida",
+      "county": "Hillsborough",
+      "city": "Tampa",
+      "dotDistrict": "District 7",
+      "country": "United States"
+    }
+  ]
+}

@@ -4,6 +4,8 @@ YOLO Detection Wrapper
 Handles model loading (with download if needed) and running inference.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -19,14 +21,17 @@ class Detection:
     """A single Waymo detection result."""
 
     confidence: float
-    bbox: list[float]  # [x1, y1, x2, y2]
+    bbox: list[float]
 
 
 @dataclass
 class DetectionResult:
     """Detection results for a single camera image."""
 
+    camera_key: str
     camera_id: str
+    market: str
+    source: str
     waymo_count: int
     detections: list[Detection]
     avg_confidence: Optional[float]
@@ -47,7 +52,6 @@ class WaymoDetector:
         self.model: Optional[YOLO] = None
 
     def ensure_model(self):
-        """Ensure the model exists locally."""
         if self.model_path.exists():
             return
 
@@ -63,7 +67,6 @@ class WaymoDetector:
         print(f"Model downloaded to {self.model_path}")
 
     def load_model(self):
-        """Load the YOLO model."""
         if self.model is not None:
             return
 
@@ -71,96 +74,71 @@ class WaymoDetector:
         print(f"Loading model from {self.model_path}")
         self.model = YOLO(str(self.model_path))
 
-    def detect_from_bytes(self, image_bytes: bytes, camera_id: str) -> DetectionResult:
-        """
-        Run detection on image bytes.
+    def _build_result(
+        self,
+        results,
+        camera_key: str,
+        camera_id: str,
+        market: str,
+        source: str,
+    ) -> DetectionResult:
+        detections: list[Detection] = []
+        for result in results:
+            boxes = result.boxes
+            if boxes is None or len(boxes) == 0:
+                continue
+            for box in boxes:
+                detections.append(
+                    Detection(
+                        confidence=float(box.conf[0]),
+                        bbox=box.xyxy[0].tolist(),
+                    )
+                )
 
-        Args:
-            image_bytes: Raw image bytes
-            camera_id: Camera identifier for the result
+        avg_conf = None
+        if detections:
+            avg_conf = sum(d.confidence for d in detections) / len(detections)
 
-        Returns:
-            DetectionResult with counts and detection details
-        """
+        return DetectionResult(
+            camera_key=camera_key,
+            camera_id=camera_id,
+            market=market,
+            source=source,
+            waymo_count=len(detections),
+            detections=detections,
+            avg_confidence=avg_conf,
+        )
+
+    def detect_from_bytes(
+        self,
+        image_bytes: bytes,
+        camera_key: str,
+        camera_id: str,
+        market: str,
+        source: str,
+    ) -> DetectionResult:
         self.load_model()
-
-        # Load image from bytes
         image = Image.open(BytesIO(image_bytes))
-
-        # Run inference
         results = self.model.predict(
             source=image,
             conf=self.confidence_threshold,
             verbose=False,
         )
-
-        # Close image to free memory
         image.close()
+        return self._build_result(results, camera_key, camera_id, market, source)
 
-        # Process results
-        detections = []
-        for result in results:
-            boxes = result.boxes
-            if boxes is not None and len(boxes) > 0:
-                for box in boxes:
-                    detection = Detection(
-                        confidence=float(box.conf[0]),
-                        bbox=box.xyxy[0].tolist(),
-                    )
-                    detections.append(detection)
-
-        # Calculate average confidence
-        avg_conf = None
-        if detections:
-            avg_conf = sum(d.confidence for d in detections) / len(detections)
-
-        return DetectionResult(
-            camera_id=camera_id,
-            waymo_count=len(detections),
-            detections=detections,
-            avg_confidence=avg_conf,
-        )
-
-    def detect_from_pil(self, image: Image.Image, camera_id: str) -> DetectionResult:
-        """
-        Run detection on a PIL Image.
-
-        Args:
-            image: PIL Image object
-            camera_id: Camera identifier for the result
-
-        Returns:
-            DetectionResult with counts and detection details
-        """
+    def detect_from_pil(
+        self,
+        image: Image.Image,
+        camera_key: str,
+        camera_id: str,
+        market: str,
+        source: str,
+    ) -> DetectionResult:
         self.load_model()
-
-        # Run inference
         results = self.model.predict(
             source=image,
             conf=self.confidence_threshold,
             verbose=False,
         )
-
-        # Process results
-        detections = []
-        for result in results:
-            boxes = result.boxes
-            if boxes is not None and len(boxes) > 0:
-                for box in boxes:
-                    detection = Detection(
-                        confidence=float(box.conf[0]),
-                        bbox=box.xyxy[0].tolist(),
-                    )
-                    detections.append(detection)
-
-        # Calculate average confidence
-        avg_conf = None
-        if detections:
-            avg_conf = sum(d.confidence for d in detections) / len(detections)
-
-        return DetectionResult(
-            camera_id=camera_id,
-            waymo_count=len(detections),
-            detections=detections,
-            avg_confidence=avg_conf,
-        )
+        return self._build_result(results, camera_key, camera_id, market, source)

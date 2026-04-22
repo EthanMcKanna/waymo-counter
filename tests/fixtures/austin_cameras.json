@@ -1,0 +1,18 @@
+[
+  {
+    "camera_id": "1001",
+    "location_name": "Austin Inside",
+    "council_district": "4",
+    "location": {
+      "coordinates": [-97.75, 30.30]
+    }
+  },
+  {
+    "camera_id": "1002",
+    "location_name": "Austin Outside",
+    "council_district": "7",
+    "location": {
+      "coordinates": [-97.95, 30.55]
+    }
+  }
+]

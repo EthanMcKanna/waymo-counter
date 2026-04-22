@@ -1,34 +1,37 @@
 # Waymo Counter
 
-Automated Waymo vehicle detection from Austin CCTV cameras. Runs every 5 minutes on Render.com, uploads results to Supabase, and tags detections as inside or outside the current known service area.
+Automated Waymo vehicle detection from public traffic cameras across Austin, San Antonio, Dallas, Houston, Atlanta, Orlando, Miami, and Phoenix. The Render cron now runs every 30 minutes, scans all enabled markets in one job, and writes both whole-run and per-market stats to Supabase.
 
 ## Features
 
-- Fetches active cameras from Austin's public CCTV API
-- Tags cameras relative to the known Waymo service area
-- Runs YOLO detection on each camera image
-- Stores results in Supabase for analysis
+- Multi-market camera registry with shared source adapters
+- Austin-only Waymo service-area tagging using the hardcoded polygon in [src/service_area.py](/Users/ethanmckanna/GitHub/waymo-counter/src/service_area.py)
+- TxDOT district support for San Antonio, Dallas, and Houston
+- Public 511 list support for Atlanta, Orlando, Phoenix, and Miami without API keys
+- SunGuide-backed Miami support through the public Florida 511 camera feed
+- YOLO inference on camera snapshots with annotated positive image upload
+- Global scan stats plus per-market rollups in Supabase
 
 ## Project Structure
 
-```
+```text
 waymo-counter/
-├── render.yaml              # Render.com cron job config
-├── requirements.txt         # Python dependencies
-├── runtime.txt              # Python 3.11
+├── render.yaml
+├── requirements.txt
 ├── .env.example
-├── .gitignore
 ├── README.md
 ├── src/
-│   ├── __init__.py
-│   ├── main.py              # Entry point - orchestrates scan
-│   ├── config.py            # Environment config
-│   ├── cameras.py           # Camera fetching/filtering
-│   ├── detector.py          # YOLO detection wrapper
-│   ├── database.py          # Supabase client
-│   └── service_area.py      # Polygon + point-in-polygon
-└── models/
-    └── .gitkeep             # Model downloaded at runtime
+│   ├── main.py
+│   ├── cameras.py
+│   ├── config.py
+│   ├── database.py
+│   ├── detector.py
+│   ├── image_annotator.py
+│   ├── service_area.py
+│   └── storage.py
+└── tests/
+    ├── fixtures/
+    └── test_cameras.py
 ```
 
 ## Environment Variables
@@ -36,90 +39,163 @@ waymo-counter/
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SUPABASE_URL` | Yes | Supabase project URL |
-| `SUPABASE_KEY` | Yes | Service role key (not anon) |
-| `MODEL_URL` | No | URL to download model weights during build |
-| `CONFIDENCE_THRESHOLD` | No | Min detection confidence (default: 0.50) |
-| `FETCH_WORKERS` | No | Concurrent image fetchers (default: 8 x CPU count, min 8) |
-| `SCAN_SCOPE` | No | `all` to scan every active camera, `service_area` for the old boundary-only mode |
+| `SUPABASE_KEY` | Yes | Supabase service-role key |
+| `MODEL_URL` | No | Model weights URL |
+| `CONFIDENCE_THRESHOLD` | No | Minimum detection confidence. Default: `0.50` |
+| `FETCH_WORKERS` | No | Concurrent image fetchers |
+| `SCAN_SCOPE` | No | `all` or `service_area`. `service_area` only filters Austin |
+| `ENABLED_MARKETS` | No | Comma-separated market slugs. Default: all 8 markets |
+
+Supported `ENABLED_MARKETS` values:
+
+```text
+austin,san_antonio,dallas,houston,atlanta,orlando,miami,phoenix
+```
+
+## Data Contract
+
+- Raw upstream camera identifier stays in `camera_id`
+- Canonical identifier is `camera_key = "<market>:<source>:<camera_id>"`
+- `source` is the adapter family identifier:
+  - `austin_cctv`
+  - `txdot_cctv`
+  - `atis_511_cctv`
+  - `sunguide_cctv`
+- New markets are scanned market-wide until explicit service-area polygons are added
+- Atlanta, Orlando, Miami, and Phoenix use the public `List/GetData/Cameras` feeds and local metro filters, so no extra API credentials are required
 
 ## Supabase Schema
 
-Run these SQL commands to set up the database:
+Apply this migration if you are upgrading an existing Austin-only install.
 
 ```sql
--- Scans table
-CREATE TABLE scans (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    total_cameras INTEGER NOT NULL,
-    cameras_scanned INTEGER NOT NULL,
-    cameras_failed INTEGER DEFAULT 0,
-    total_waymo_count INTEGER NOT NULL DEFAULT 0,
-    cameras_with_waymos INTEGER DEFAULT 0,
-    duration_seconds NUMERIC(10, 2)
+-- Whole-run scans table
+create table if not exists scans (
+    id uuid default gen_random_uuid() primary key,
+    timestamp timestamptz not null default now(),
+    total_cameras integer not null,
+    cameras_scanned integer not null,
+    cameras_failed integer default 0,
+    total_waymo_count integer not null default 0,
+    cameras_with_waymos integer default 0,
+    duration_seconds numeric(10, 2)
 );
-CREATE INDEX idx_scans_timestamp ON scans(timestamp DESC);
+create index if not exists idx_scans_timestamp on scans(timestamp desc);
 
--- Detections table
-CREATE TABLE detections (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    scan_id UUID REFERENCES scans(id) ON DELETE CASCADE,
-    camera_id TEXT NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL,
-    waymo_count INTEGER NOT NULL,
-    avg_confidence NUMERIC(5, 4),
-    detections_json JSONB
+-- Canonical camera metadata
+alter table cameras add column if not exists camera_key text;
+alter table cameras add column if not exists market text;
+alter table cameras add column if not exists source text;
+alter table cameras add column if not exists image_url text;
+alter table cameras add column if not exists is_in_service_area boolean default false;
+
+update cameras
+set
+    market = coalesce(market, 'austin'),
+    source = coalesce(source, 'austin_cctv'),
+    camera_key = coalesce(camera_key, 'austin:austin_cctv:' || camera_id)
+where camera_key is null or market is null or source is null;
+
+alter table cameras alter column camera_key set not null;
+alter table cameras alter column market set not null;
+alter table cameras alter column source set not null;
+
+create unique index if not exists idx_cameras_camera_key on cameras(camera_key);
+create index if not exists idx_cameras_market on cameras(market);
+
+-- Detection rows
+alter table detections add column if not exists camera_key text;
+alter table detections add column if not exists market text;
+alter table detections add column if not exists source text;
+alter table detections add column if not exists image_url text;
+
+update detections
+set
+    market = coalesce(market, 'austin'),
+    source = coalesce(source, 'austin_cctv'),
+    camera_key = coalesce(camera_key, 'austin:austin_cctv:' || camera_id)
+where camera_key is null or market is null or source is null;
+
+alter table detections alter column camera_key set not null;
+alter table detections alter column market set not null;
+alter table detections alter column source set not null;
+
+create index if not exists idx_detections_camera_key on detections(camera_key);
+create index if not exists idx_detections_market on detections(market);
+create index if not exists idx_detections_timestamp on detections(timestamp desc);
+
+-- Per-market rollups
+create table if not exists scan_market_stats (
+    scan_id uuid not null references scans(id) on delete cascade,
+    market text not null,
+    total_cameras integer not null,
+    cameras_scanned integer not null,
+    cameras_failed integer not null default 0,
+    total_waymo_count integer not null default 0,
+    cameras_with_waymos integer not null default 0,
+    duration_seconds numeric(10, 2),
+    primary key (scan_id, market)
 );
-CREATE INDEX idx_detections_camera_id ON detections(camera_id);
-CREATE INDEX idx_detections_timestamp ON detections(timestamp DESC);
+create index if not exists idx_scan_market_stats_market on scan_market_stats(market);
+```
 
--- Cameras table
-CREATE TABLE cameras (
-    camera_id TEXT PRIMARY KEY,
-    location_name TEXT,
-    longitude NUMERIC(12, 9),
-    latitude NUMERIC(12, 9),
-    council_district INTEGER,
-    last_scanned TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+For a fresh install, create the `cameras` and `detections` tables with the new columns from the start:
+
+```sql
+create table if not exists cameras (
+    camera_key text primary key,
+    camera_id text not null,
+    market text not null,
+    source text not null,
+    location_name text,
+    longitude numeric(12, 9),
+    latitude numeric(12, 9),
+    council_district integer,
+    image_url text,
+    is_in_service_area boolean default false,
+    last_scanned timestamptz,
+    updated_at timestamptz default now()
+);
+
+create table if not exists detections (
+    id uuid default gen_random_uuid() primary key,
+    scan_id uuid references scans(id) on delete cascade,
+    camera_key text not null,
+    camera_id text not null,
+    market text not null,
+    source text not null,
+    timestamp timestamptz not null,
+    waymo_count integer not null,
+    avg_confidence numeric(5, 4),
+    detections_json jsonb,
+    image_url text
 );
 ```
 
+## Storage Paths
+
+Positive detections are now stored under:
+
+```text
+detections/{market}/{source}/{area_label}/{camera_storage_slug}/{YYYY-MM-DD}/{HHMMSS}.jpg
+```
+
+Austin still uses `inside_service_area` and `outside_service_area`. Other markets use `market_wide`.
+
 ## Local Development
 
-1. Clone the repository
-2. Create a virtual environment: `python -m venv .venv`
-3. Activate: `source .venv/bin/activate`
-4. Install dependencies: `pip install -r requirements.txt`
-5. Copy `.env.example` to `.env` and fill in values
-6. Download weights: `python scripts/download_model.py`
-7. Run: `python -m src.main`
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python3 scripts/download_model.py
+python3 -m pytest
+python3 -m src.main
+```
 
 ## Deployment
 
-1. Push to GitHub
-2. Connect repo to Render.com
-3. Render will auto-detect `render.yaml` blueprint
-4. Set environment variables in Render dashboard
-5. Upload model weights to GitHub Releases
-6. Update `MODEL_URL` in render.yaml or Render dashboard
-7. Ensure the build command downloads the model into `models/best.pt`
-
-## Model Hosting
-
-The YOLO model weights (~18MB) should be hosted on GitHub Releases:
-
-1. Create a release on your repo (e.g., `v1.0`)
-2. Upload `best.pt` as a release asset
-3. Set `MODEL_URL` to the download URL
-
-The model is downloaded during the Render build so each cron run can start
-immediately without a runtime weight fetch.
-
-## Expansion Monitoring
-
-By default the scanner now processes all active Austin cameras and tags each one
-as `inside_service_area` or `outside_service_area` based on the hardcoded Waymo
-polygon in `src/service_area.py`.
-Positive images are saved under matching storage prefixes so likely expansion
-hits are easy to review separately.
+- Render cron schedule: every 30 minutes
+- Set `ENABLED_MARKETS` to the markets you want active
+- Leave `SCAN_SCOPE=service_area` only if you want Austin filtered to the current polygon

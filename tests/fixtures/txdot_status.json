@@ -1,0 +1,17 @@
+{
+  "roadwayCctvStatuses": {
+    "IH20": [
+      {
+        "icd_Id": "IH20 @ Belt Line (Balch Springs)",
+        "name": "IH20 @ Belt Line (Balch Springs)",
+        "latitude": 32.704792,
+        "longitude": -96.586894,
+        "dirDescription": "East",
+        "hasSnapshot": true,
+        "equipLoc": {
+          "roadway": "IH20"
+        }
+      }
+    ]
+  }
+}
