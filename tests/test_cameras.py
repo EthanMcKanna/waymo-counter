@@ -61,6 +61,13 @@ def test_parse_txdot_payload_builds_snapshot_urls():
     assert "icdId=IH20%20%40%20Belt%20Line%20%28Balch%20Springs%29" in camera.image_url
 
 
+def test_txdot_parser_tolerates_empty_or_malformed_payloads():
+    source = TxDotDistrictSource("SAT")
+
+    assert source.parse_status_payload(None, market="san_antonio") == []
+    assert source.parse_status_payload({"roadwayCctvStatuses": None}, market="san_antonio") == []
+
+
 def test_parse_public_511_payload_filters_to_market_bounds():
     atlanta_source = MARKET_SPECS["atlanta"].adapter
     atlanta_cameras = atlanta_source.parse_camera_rows(

@@ -25,6 +25,7 @@ class Config:
     fetch_workers: int
     scan_scope: str
     enabled_markets: list[str]
+    scan_lock_minutes: int
 
 
 def _parse_enabled_markets(raw_value: str) -> list[str]:
@@ -88,6 +89,7 @@ def load_config() -> Config:
     enabled_markets = _parse_enabled_markets(
         os.environ.get("ENABLED_MARKETS", ",".join(DEFAULT_ENABLED_MARKETS))
     )
+    scan_lock_minutes = int(os.environ.get("SCAN_LOCK_MINUTES", "120"))
 
     return Config(
         supabase_url=supabase_url,
@@ -98,4 +100,5 @@ def load_config() -> Config:
         fetch_workers=fetch_workers,
         scan_scope=scan_scope,
         enabled_markets=enabled_markets,
+        scan_lock_minutes=scan_lock_minutes,
     )

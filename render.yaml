@@ -17,6 +17,8 @@ services:
         value: "0.50"
       - key: FETCH_WORKERS
         value: "16"
+      - key: SCAN_LOCK_MINUTES
+        value: "120"
       - key: SCAN_SCOPE
         value: "all"
       - key: ENABLED_MARKETS

@@ -13,7 +13,7 @@ import sys
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .cameras import Camera, CameraFetcher
 from .config import load_config
@@ -83,6 +83,27 @@ def run_scan():
 
     print("Initializing components...")
     db = Database(config.supabase_url, config.supabase_key)
+    if config.scan_lock_minutes > 0:
+        lock_cutoff = datetime.now(timezone.utc) - timedelta(
+            minutes=config.scan_lock_minutes
+        )
+        active_scans = db.list_recent_incomplete_scans(lock_cutoff)
+        if active_scans:
+            print(
+                "Another scan appears to be running or recently stalled. "
+                f"Found {len(active_scans)} incomplete scan(s) since "
+                f"{lock_cutoff.isoformat()}."
+            )
+            for scan in active_scans:
+                print(
+                    "  "
+                    f"{scan.get('id')} at {scan.get('timestamp')}: "
+                    f"{scan.get('cameras_scanned')}/{scan.get('total_cameras')} "
+                    f"scanned, {scan.get('cameras_failed')} failed"
+                )
+            print("Exiting without starting a duplicate scan.")
+            return
+
     image_storage = ImageStorage(db.client)
     detector = WaymoDetector(
         model_path=config.model_path,

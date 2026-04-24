@@ -69,6 +69,25 @@ class Database:
         if data:
             self.client.table("scans").update(data).eq("id", scan_id).execute()
 
+    def list_recent_incomplete_scans(
+        self,
+        since: datetime,
+        limit: int = 5,
+    ) -> list[dict]:
+        result = (
+            self.client.table("scans")
+            .select(
+                "id,timestamp,total_cameras,cameras_scanned,cameras_failed,"
+                "duration_seconds"
+            )
+            .filter("duration_seconds", "is", "null")
+            .gte("timestamp", since.isoformat())
+            .order("timestamp", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return result.data or []
+
     def insert_detection(
         self,
         scan_id: str,

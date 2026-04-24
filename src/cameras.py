@@ -299,8 +299,13 @@ class TxDotDistrictSource(CameraSource):
         payload: dict[str, Any],
         market: str,
     ) -> list[Camera]:
+        if not isinstance(payload, dict):
+            return []
+
         deduped: dict[str, Camera] = {}
         roadway_statuses = payload.get("roadwayCctvStatuses", {}) or {}
+        if not isinstance(roadway_statuses, dict):
+            return []
 
         for entries in roadway_statuses.values():
             if not isinstance(entries, list):
@@ -317,6 +322,8 @@ class TxDotDistrictSource(CameraSource):
                     continue
 
                 equip_loc = entry.get("equipLoc", {}) or {}
+                if not isinstance(equip_loc, dict):
+                    equip_loc = {}
                 lon = _parse_float(entry.get("longitude") or entry.get("lonString"))
                 lat = _parse_float(entry.get("latitude") or entry.get("latString"))
 
@@ -403,7 +410,11 @@ class Public511CameraSource(CameraSource):
                 continue
 
             lat_lng = row.get("latLng", {}) or {}
+            if not isinstance(lat_lng, dict):
+                lat_lng = {}
             geography = lat_lng.get("geography", {}) or {}
+            if not isinstance(geography, dict):
+                geography = {}
             lon, lat = _parse_point_wkt(geography.get("wellKnownText"))
 
             county = _clean_text(row.get("county"))
@@ -412,6 +423,8 @@ class Public511CameraSource(CameraSource):
                 continue
 
             images = row.get("images") or []
+            if not isinstance(images, list):
+                images = []
             image_url = self._extract_image_url(images)
             if not image_url:
                 continue
@@ -487,7 +500,17 @@ class Public511CameraSource(CameraSource):
                     print(f"Stopping {market} 511 fetch for '{label}' at offset {start}: {exc}")
                     break
 
+                if not isinstance(payload, dict):
+                    label = search_term or "all cameras"
+                    print(
+                        f"Stopping {market} 511 fetch for '{label}' at offset {start}: "
+                        "unexpected payload"
+                    )
+                    break
+
                 rows = payload.get("data", []) or []
+                if not isinstance(rows, list):
+                    rows = []
                 records_filtered = _parse_int(payload.get("recordsFiltered")) or len(rows)
 
                 for camera in self.parse_camera_rows(rows, market=market):
