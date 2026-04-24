@@ -280,3 +280,7 @@ def main():
     except Exception as exc:
         print(f"\nFATAL ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
