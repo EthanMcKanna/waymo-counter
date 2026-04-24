@@ -671,6 +671,9 @@ class CameraFetcher:
             except json.JSONDecodeError:
                 return None
 
+            if not isinstance(payload, dict):
+                return None
+
             snippet = payload.get("snippet")
             if snippet:
                 try:
@@ -689,7 +692,7 @@ class CameraFetcher:
             response = self.client.get(camera.image_url)
             response.raise_for_status()
             return self._extract_image_bytes(response)
-        except httpx.HTTPError:
+        except Exception:
             return None
 
     def fetch_image_as_pil(self, camera: Camera) -> Optional[Image.Image]:

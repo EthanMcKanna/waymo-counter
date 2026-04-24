@@ -110,6 +110,16 @@ def test_extract_image_bytes_decodes_txdot_snapshot_json():
     assert CameraFetcher._extract_image_bytes(response) == image_bytes
 
 
+def test_extract_image_bytes_tolerates_empty_json_payloads():
+    response = httpx.Response(
+        200,
+        headers={"content-type": "application/json"},
+        json=None,
+    )
+
+    assert CameraFetcher._extract_image_bytes(response) is None
+
+
 def test_mocked_source_fetches_cover_each_source_family():
     austin_rows = load_fixture("austin_cameras.json")
     txdot_payload = load_fixture("txdot_status.json")
