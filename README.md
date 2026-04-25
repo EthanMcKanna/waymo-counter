@@ -40,8 +40,9 @@ waymo-counter/
 |----------|----------|-------------|
 | `SUPABASE_URL` | Yes | Supabase project URL |
 | `SUPABASE_KEY` | Yes | Supabase service-role key |
-| `MODEL_URL` | No | Model weights URL |
-| `CONFIDENCE_THRESHOLD` | No | Minimum detection confidence. Default: `0.50` |
+| `MODEL_URL` | No | Model weights URL. Default: `v1.1` edge YOLO26s release |
+| `MODEL_IMAGE_SIZE` | No | YOLO inference image size. Default: `640` |
+| `CONFIDENCE_THRESHOLD` | No | Minimum detection confidence. Default: `0.70` |
 | `FETCH_WORKERS` | No | Concurrent image fetchers |
 | `SCAN_SCOPE` | No | `all` or `service_area`. `service_area` only filters Austin |
 | `ENABLED_MARKETS` | No | Comma-separated market slugs. Default: all 8 markets |
@@ -199,3 +200,15 @@ python3 -m src.main
 - Render cron schedule: every 30 minutes
 - Set `ENABLED_MARKETS` to the markets you want active
 - Leave `SCAN_SCOPE=service_area` only if you want Austin filtered to the current polygon
+
+## Detector Release
+
+Production uses the `v1.1` edge YOLO26s checkpoint:
+
+```text
+https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt
+```
+
+The model is calibrated for `MODEL_IMAGE_SIZE=640` and `CONFIDENCE_THRESHOLD=0.70`.
+It keeps the deployed detector in the same small YOLO26s size class while improving
+validation mAP50-95 on the held-out HQ and full-background splits.

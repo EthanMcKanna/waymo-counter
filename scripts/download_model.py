@@ -14,7 +14,7 @@ from urllib.request import urlopen
 
 
 DEFAULT_MODEL_URL = (
-    "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt"
+    "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt"
 )
 
 

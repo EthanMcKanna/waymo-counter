@@ -109,6 +109,7 @@ def run_scan():
         model_path=config.model_path,
         model_url=config.model_url,
         confidence_threshold=config.confidence_threshold,
+        image_size=config.model_image_size,
     )
 
     print("Loading detection model...")

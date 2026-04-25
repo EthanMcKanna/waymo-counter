@@ -38,8 +38,9 @@ ENV/
 # macOS
 .DS_Store
 
-# Model weights (downloaded at runtime)
-models/*.pt
+# Model weights (downloaded at build/runtime)
+models/**/*.pt
+models/**/*.onnx
 !models/.gitkeep
 
 # Logs

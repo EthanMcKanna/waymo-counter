@@ -21,6 +21,7 @@ class Config:
     supabase_key: str
     model_url: str
     model_path: Path
+    model_image_size: int
     confidence_threshold: float
     fetch_workers: int
     scan_scope: str
@@ -65,10 +66,11 @@ def load_config() -> Config:
 
     model_url = os.environ.get(
         "MODEL_URL",
-        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.0/best.pt",
+        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt",
     )
     model_path = Path(__file__).parent.parent / "models" / "best.pt"
-    confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.50"))
+    model_image_size = int(os.environ.get("MODEL_IMAGE_SIZE", "640"))
+    confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.70"))
 
     detected_cpu_count = max(
         1,
@@ -96,6 +98,7 @@ def load_config() -> Config:
         supabase_key=supabase_key,
         model_url=model_url,
         model_path=model_path,
+        model_image_size=model_image_size,
         confidence_threshold=confidence_threshold,
         fetch_workers=fetch_workers,
         scan_scope=scan_scope,

@@ -45,10 +45,12 @@ class WaymoDetector:
         model_path: Path,
         model_url: str,
         confidence_threshold: float = 0.50,
+        image_size: int = 640,
     ):
         self.model_path = model_path
         self.model_url = model_url
         self.confidence_threshold = confidence_threshold
+        self.image_size = image_size
         self.model: Optional[YOLO] = None
 
     def ensure_model(self):
@@ -122,6 +124,7 @@ class WaymoDetector:
         results = self.model.predict(
             source=image,
             conf=self.confidence_threshold,
+            imgsz=self.image_size,
             verbose=False,
         )
         image.close()
@@ -139,6 +142,7 @@ class WaymoDetector:
         results = self.model.predict(
             source=image,
             conf=self.confidence_threshold,
+            imgsz=self.image_size,
             verbose=False,
         )
         return self._build_result(results, camera_key, camera_id, market, source)

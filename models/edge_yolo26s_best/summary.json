@@ -1,0 +1,316 @@
+{
+  "trials": [
+    {
+      "name": "yolo26s_bal1_640",
+      "model": "yolo26s.pt",
+      "data": "/root/waymo-eval/data/dataset_edge_balanced",
+      "imgsz": 640,
+      "epochs": 220,
+      "patience": 55,
+      "batch": 0.85,
+      "lr0": 0.0008,
+      "optimizer": "AdamW",
+      "mosaic": 0.7,
+      "close_mosaic": 20,
+      "scale": 0.3,
+      "degrees": 2.0,
+      "weight_decay": 0.0005,
+      "pretrained_from": null,
+      "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal1_640",
+      "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal1_640/weights/best.pt",
+      "seconds": 297.3,
+      "best_epoch": 129,
+      "precision": 0.86959,
+      "recall": 0.76528,
+      "map50": 0.8215,
+      "map50_95": 0.57524,
+      "final_val": {
+        "hq_640": {
+          "precision": 0.8776741682379405,
+          "recall": 0.847457627118644,
+          "map50": 0.9054365580022845,
+          "map50_95": 0.8008313316118381
+        },
+        "full_640": {
+          "precision": 0.6804674514329256,
+          "recall": 0.5935369778216327,
+          "map50": 0.6259716999600405,
+          "map50_95": 0.44426676552948335
+        },
+        "hq_960": {
+          "precision": 0.8587173913729862,
+          "recall": 0.8135593220338984,
+          "map50": 0.8817838996440912,
+          "map50_95": 0.71331746383732
+        },
+        "full_960": {
+          "precision": 0.6991559035738578,
+          "recall": 0.7049180327868853,
+          "map50": 0.7396125604300119,
+          "map50_95": 0.5118093382493714
+        }
+      },
+      "edge_score": 0.7081748198951708
+    },
+    {
+      "name": "yolo26s_bal2_640",
+      "model": "yolo26s.pt",
+      "data": "/root/waymo-eval/data/dataset_edge_balanced2x",
+      "imgsz": 640,
+      "epochs": 220,
+      "patience": 55,
+      "batch": 0.85,
+      "lr0": 0.0008,
+      "optimizer": "AdamW",
+      "mosaic": 0.7,
+      "close_mosaic": 20,
+      "scale": 0.3,
+      "degrees": 2.0,
+      "weight_decay": 0.0005,
+      "pretrained_from": null,
+      "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal2_640",
+      "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal2_640/weights/best.pt",
+      "seconds": 447.6,
+      "best_epoch": 156,
+      "precision": 0.88353,
+      "recall": 0.7541,
+      "map50": 0.79311,
+      "map50_95": 0.57689,
+      "final_val": {
+        "hq_640": {
+          "precision": 0.8814722717702379,
+          "recall": 0.8305084745762712,
+          "map50": 0.8877219531726919,
+          "map50_95": 0.8137632563729195
+        },
+        "full_640": {
+          "precision": 0.5774954267338396,
+          "recall": 0.6557377049180327,
+          "map50": 0.6599338100832679,
+          "map50_95": 0.48386079456812336
+        },
+        "hq_960": {
+          "precision": 0.8648006777958687,
+          "recall": 0.7589622215850932,
+          "map50": 0.8506105097380428,
+          "map50_95": 0.7182271485709882
+        },
+        "full_960": {
+          "precision": 0.7511314341032672,
+          "recall": 0.6721311475409836,
+          "map50": 0.7257663143784654,
+          "map50_95": 0.49381003271778895
+        }
+      },
+      "edge_score": 0.748963265243947
+    },
+    {
+      "name": "yolo26s_hq_640",
+      "model": "yolo26s.pt",
+      "data": "/root/waymo-eval/data/dataset_hq",
+      "imgsz": 640,
+      "epochs": 220,
+      "patience": 55,
+      "batch": 0.85,
+      "lr0": 0.0007,
+      "optimizer": "AdamW",
+      "mosaic": 0.65,
+      "close_mosaic": 20,
+      "scale": 0.3,
+      "degrees": 2.0,
+      "weight_decay": 0.0005,
+      "pretrained_from": null,
+      "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_hq_640",
+      "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_hq_640/weights/best.pt",
+      "seconds": 720.3,
+      "best_epoch": 152,
+      "precision": 0.74537,
+      "recall": 0.62712,
+      "map50": 0.68222,
+      "map50_95": 0.48876,
+      "final_val": {
+        "hq_640": {
+          "precision": 0.7455791217022207,
+          "recall": 0.6271186440677966,
+          "map50": 0.681751256163381,
+          "map50_95": 0.4891743670837448
+        },
+        "full_640": {
+          "precision": 0.9616677493607014,
+          "recall": 0.8688524590163934,
+          "map50": 0.8958860162248068,
+          "map50_95": 0.8095032217766102
+        },
+        "hq_960": {
+          "precision": 0.8681538975635325,
+          "recall": 0.7288135593220338,
+          "map50": 0.7765941917311123,
+          "map50_95": 0.5409455029599866
+        },
+        "full_960": {
+          "precision": 0.940272419009001,
+          "recall": 0.8688524590163934,
+          "map50": 0.9125973252828158,
+          "map50_95": 0.771010207628547
+        }
+      },
+      "edge_score": 1.0233228239664012
+    },
+    {
+      "name": "yolo26s_best_to_hq_640",
+      "model": "yolo26s.pt",
+      "data": "/root/waymo-eval/data/dataset_hq",
+      "imgsz": 640,
+      "epochs": 140,
+      "patience": 35,
+      "batch": 0.85,
+      "lr0": 0.00025,
+      "optimizer": "AdamW",
+      "mosaic": 0.35,
+      "close_mosaic": 15,
+      "scale": 0.2,
+      "degrees": 2.0,
+      "weight_decay": 0.0005,
+      "pretrained_from": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal2_640/weights/best.pt",
+      "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_hq_640",
+      "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_hq_640/weights/best.pt",
+      "seconds": 315.1,
+      "best_epoch": 52,
+      "precision": 0.97768,
+      "recall": 0.84746,
+      "map50": 0.89778,
+      "map50_95": 0.77413,
+      "final_val": {
+        "hq_640": {
+          "precision": 0.9803074785441294,
+          "recall": 0.8437978014835564,
+          "map50": 0.8979910859037106,
+          "map50_95": 0.7726282129273047
+        },
+        "full_640": {
+          "precision": 0.949072782478237,
+          "recall": 0.8688524590163934,
+          "map50": 0.8941621346369424,
+          "map50_95": 0.7893900085534044
+        },
+        "hq_960": {
+          "precision": 0.8815905335524533,
+          "recall": 0.7966101694915254,
+          "map50": 0.8916330669760102,
+          "map50_95": 0.6987970002025531
+        },
+        "full_960": {
+          "precision": 0.9417769979675689,
+          "recall": 0.8360655737704918,
+          "map50": 0.907836373198853,
+          "map50_95": 0.7179451988558132
+        }
+      },
+      "edge_score": 1.073443323859962
+    },
+    {
+      "name": "yolo26s_best_to_full_640",
+      "model": "yolo26s.pt",
+      "data": "/root/waymo-eval/data/dataset_edge_full640",
+      "imgsz": 640,
+      "epochs": 120,
+      "patience": 30,
+      "batch": 0.85,
+      "lr0": 0.00018,
+      "optimizer": "AdamW",
+      "mosaic": 0.2,
+      "close_mosaic": 10,
+      "scale": 0.15,
+      "degrees": 2.0,
+      "weight_decay": 0.0005,
+      "pretrained_from": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal2_640/weights/best.pt",
+      "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_full_640",
+      "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_full_640/weights/best.pt",
+      "seconds": 920.7,
+      "best_epoch": 21,
+      "precision": 0.84941,
+      "recall": 0.4918,
+      "map50": 0.63919,
+      "map50_95": 0.45827,
+      "final_val": {
+        "hq_640": {
+          "precision": 1.0,
+          "recall": 0.8606794916656478,
+          "map50": 0.9105714285714286,
+          "map50_95": 0.7843540220351708
+        },
+        "full_640": {
+          "precision": 0.8494670529334465,
+          "recall": 0.4918032786885246,
+          "map50": 0.6396417399941177,
+          "map50_95": 0.4597508269036893
+        },
+        "hq_960": {
+          "precision": 0.8988984028062209,
+          "recall": 0.8135593220338984,
+          "map50": 0.8524136256824937,
+          "map50_95": 0.6611892730320146
+        },
+        "full_960": {
+          "precision": 0.8103535650790563,
+          "recall": 0.6305239395598383,
+          "map50": 0.6940617007723053,
+          "map50_95": 0.45286528082766064
+        }
+      },
+      "edge_score": 0.7229028489935805
+    }
+  ],
+  "winner": {
+    "name": "yolo26s_best_to_hq_640",
+    "model": "yolo26s.pt",
+    "data": "/root/waymo-eval/data/dataset_hq",
+    "imgsz": 640,
+    "epochs": 140,
+    "patience": 35,
+    "batch": 0.85,
+    "lr0": 0.00025,
+    "optimizer": "AdamW",
+    "mosaic": 0.35,
+    "close_mosaic": 15,
+    "scale": 0.2,
+    "degrees": 2.0,
+    "weight_decay": 0.0005,
+    "pretrained_from": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_bal2_640/weights/best.pt",
+    "run_dir": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_hq_640",
+    "best_weights": "/root/waymo-eval/runs_edge_yolo26s/yolo26s_best_to_hq_640/weights/best.pt",
+    "seconds": 315.1,
+    "best_epoch": 52,
+    "precision": 0.97768,
+    "recall": 0.84746,
+    "map50": 0.89778,
+    "map50_95": 0.77413,
+    "final_val": {
+      "hq_640": {
+        "precision": 0.9803074785441294,
+        "recall": 0.8437978014835564,
+        "map50": 0.8979910859037106,
+        "map50_95": 0.7726282129273047
+      },
+      "full_640": {
+        "precision": 0.949072782478237,
+        "recall": 0.8688524590163934,
+        "map50": 0.8941621346369424,
+        "map50_95": 0.7893900085534044
+      },
+      "hq_960": {
+        "precision": 0.8815905335524533,
+        "recall": 0.7966101694915254,
+        "map50": 0.8916330669760102,
+        "map50_95": 0.6987970002025531
+      },
+      "full_960": {
+        "precision": 0.9417769979675689,
+        "recall": 0.8360655737704918,
+        "map50": 0.907836373198853,
+        "map50_95": 0.7179451988558132
+      }
+    },
+    "edge_score": 1.073443323859962
+  }
+}
