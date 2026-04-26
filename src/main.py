@@ -125,6 +125,7 @@ def run_scan():
             crop_padding=config.verifier_crop_padding,
             austin_threshold=config.verifier_threshold,
             non_austin_threshold=config.verifier_non_austin_threshold,
+            calibration_enabled=config.verifier_calibration_enabled,
         )
 
     print("Loading detection model...")

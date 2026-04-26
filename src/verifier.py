@@ -7,6 +7,7 @@ and filters likely false positives before images or counts are persisted.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,78 @@ from .detector import Detection, DetectionResult
 
 IMAGENET_MEAN = np.array((0.485, 0.456, 0.406), dtype=np.float32)
 IMAGENET_STD = np.array((0.229, 0.224, 0.225), dtype=np.float32)
+
+CALIBRATOR_MARKETS = (
+    "atlanta",
+    "austin",
+    "dallas",
+    "houston",
+    "miami",
+    "orlando",
+    "phoenix",
+    "san_antonio",
+)
+CALIBRATOR_MEAN = np.array(
+    (
+        -0.04827887937426567,
+        0.39634987711906433,
+        0.777036190032959,
+        4.330371379852295,
+        4.1257734298706055,
+        8.456143379211426,
+        1.256852626800537,
+        0.13983051478862762,
+        0.4053672254085541,
+        0.09604519605636597,
+        0.19491524994373322,
+        0.007062146905809641,
+        0.005649717524647713,
+        0.11864406615495682,
+        0.032485876232385635,
+    ),
+    dtype=np.float32,
+)
+CALIBRATOR_STD = np.array(
+    (
+        5.3117218017578125,
+        0.456235408782959,
+        0.14048679172992706,
+        0.9266569018363953,
+        0.8842604160308838,
+        1.7969250679016113,
+        0.2679489850997925,
+        0.3468121886253357,
+        0.490964412689209,
+        0.2946540117263794,
+        0.39613741636276245,
+        0.08374043554067612,
+        0.07495298981666565,
+        0.3233698904514313,
+        0.17728760838508606,
+    ),
+    dtype=np.float32,
+)
+CALIBRATOR_WEIGHTS = np.array(
+    (
+        0.5404242873191833,
+        0.5796090960502625,
+        0.258226603269577,
+        0.20560230314731598,
+        0.2039840817451477,
+        0.20640695095062256,
+        0.03208533301949501,
+        -0.06381717324256897,
+        0.25102540850639343,
+        -0.08912207186222076,
+        -0.11937563866376877,
+        -0.031208360567688942,
+        0.05146217346191406,
+        -0.05951080471277237,
+        -0.05393761023879051,
+    ),
+    dtype=np.float32,
+)
+CALIBRATOR_BIAS = -1.0096935033798218
 
 
 def crop_box(
@@ -70,6 +143,7 @@ class WaymoVerifier:
         crop_padding: float = 0.35,
         austin_threshold: float = 0.475,
         non_austin_threshold: float = 0.90,
+        calibration_enabled: bool = False,
         device: Optional[torch.device] = None,
     ):
         self.model_path = model_path
@@ -78,6 +152,7 @@ class WaymoVerifier:
         self.crop_padding = crop_padding
         self.austin_threshold = austin_threshold
         self.non_austin_threshold = non_austin_threshold
+        self.calibration_enabled = calibration_enabled
         self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model: Optional[torch.jit.ScriptModule] = None
 
@@ -110,6 +185,37 @@ class WaymoVerifier:
         return self.non_austin_threshold
 
     @torch.inference_mode()
+    def calibrated_score(
+        self,
+        raw_probability: float,
+        detection: Detection,
+        market: str,
+    ) -> float:
+        x1, y1, x2, y2 = [float(value) for value in detection.bbox]
+        width = max(1e-3, x2 - x1)
+        height = max(1e-3, y2 - y1)
+        area = width * height
+        probability = min(1.0 - 1e-5, max(1e-5, raw_probability))
+        logit = math.log(probability / (1.0 - probability))
+
+        features = np.array(
+            (
+                logit,
+                raw_probability,
+                detection.confidence,
+                math.log(width),
+                math.log(height),
+                math.log(area),
+                width / height,
+                *(1.0 if market.lower() == item else 0.0 for item in CALIBRATOR_MARKETS),
+            ),
+            dtype=np.float32,
+        )
+        normalized = (features - CALIBRATOR_MEAN) / CALIBRATOR_STD
+        calibrated_logit = float(np.dot(normalized, CALIBRATOR_WEIGHTS) + CALIBRATOR_BIAS)
+        return 1.0 / (1.0 + math.exp(-calibrated_logit))
+
+    @torch.inference_mode()
     def score_detection(self, image: Image.Image, detection: Detection) -> float:
         self.load_model()
         assert self.model is not None
@@ -121,6 +227,17 @@ class WaymoVerifier:
         crop.close()
         return float(probability)
 
+    def score_detection_for_market(
+        self,
+        image: Image.Image,
+        detection: Detection,
+        market: str,
+    ) -> float:
+        raw_probability = self.score_detection(image, detection)
+        if not self.calibration_enabled:
+            return raw_probability
+        return self.calibrated_score(raw_probability, detection, market)
+
     def verify_result(self, image: Image.Image, result: DetectionResult) -> DetectionResult:
         if not result.detections:
             return result
@@ -128,7 +245,7 @@ class WaymoVerifier:
         threshold = self.threshold_for_market(result.market)
         accepted: list[Detection] = []
         for detection in result.detections:
-            verifier_confidence = self.score_detection(image, detection)
+            verifier_confidence = self.score_detection_for_market(image, detection, result.market)
             if verifier_confidence >= threshold:
                 accepted.append(
                     Detection(

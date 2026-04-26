@@ -51,7 +51,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--arch",
-        choices=["mobilenet_v3_small", "mobilenet_v3_large", "efficientnet_b0"],
+        choices=[
+            "mobilenet_v3_small",
+            "mobilenet_v3_large",
+            "efficientnet_b0",
+            "efficientnet_b1",
+            "efficientnet_b2",
+            "efficientnet_v2_s",
+            "regnet_y_400mf",
+            "regnet_y_800mf",
+            "convnext_tiny",
+        ],
         default="mobilenet_v3_small",
     )
     parser.add_argument("--epochs", type=int, default=60)
@@ -64,6 +74,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=15)
     parser.add_argument("--min-austin-recall", type=float, default=0.90)
     parser.add_argument("--min-overall-recall", type=float, default=0.80)
+    parser.add_argument(
+        "--sampler",
+        choices=["weighted", "shuffle"],
+        default="weighted",
+        help="Use balanced sampling or natural shuffled batches.",
+    )
+    parser.add_argument(
+        "--class-weights",
+        choices=["balanced", "none", "negative_bias"],
+        default="balanced",
+        help="Loss weighting strategy for false-positive-sensitive runs.",
+    )
+    parser.add_argument(
+        "--negative-weight-multiplier",
+        type=float,
+        default=1.5,
+        help="Extra label-0 loss weight when --class-weights=negative_bias.",
+    )
     parser.add_argument("--no-pretrained", action="store_true")
     return parser.parse_args()
 
@@ -175,13 +203,59 @@ def build_model(arch: str, pretrained: bool) -> nn.Module:
         in_features = model.classifier[-1].in_features
         model.classifier[-1] = nn.Linear(in_features, 2)
         return model
+    if arch == "efficientnet_b1":
+        weights = models.EfficientNet_B1_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b1(weights=weights)
+        in_features = model.classifier[-1].in_features
+        model.classifier[-1] = nn.Linear(in_features, 2)
+        return model
+    if arch == "efficientnet_b2":
+        weights = models.EfficientNet_B2_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_b2(weights=weights)
+        in_features = model.classifier[-1].in_features
+        model.classifier[-1] = nn.Linear(in_features, 2)
+        return model
+    if arch == "efficientnet_v2_s":
+        weights = models.EfficientNet_V2_S_Weights.DEFAULT if pretrained else None
+        model = models.efficientnet_v2_s(weights=weights)
+        in_features = model.classifier[-1].in_features
+        model.classifier[-1] = nn.Linear(in_features, 2)
+        return model
+    if arch == "regnet_y_400mf":
+        weights = models.RegNet_Y_400MF_Weights.DEFAULT if pretrained else None
+        model = models.regnet_y_400mf(weights=weights)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, 2)
+        return model
+    if arch == "regnet_y_800mf":
+        weights = models.RegNet_Y_800MF_Weights.DEFAULT if pretrained else None
+        model = models.regnet_y_800mf(weights=weights)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, 2)
+        return model
+    if arch == "convnext_tiny":
+        weights = models.ConvNeXt_Tiny_Weights.DEFAULT if pretrained else None
+        model = models.convnext_tiny(weights=weights)
+        in_features = model.classifier[-1].in_features
+        model.classifier[-1] = nn.Linear(in_features, 2)
+        return model
     raise ValueError(f"Unsupported architecture: {arch}")
 
 
-def class_weights(examples: list[Example], device: torch.device) -> torch.Tensor:
+def class_weights(
+    examples: list[Example],
+    device: torch.device,
+    mode: str,
+    negative_multiplier: float,
+) -> torch.Tensor | None:
+    if mode == "none":
+        return None
+
     counts = Counter(example.label for example in examples)
     total = sum(counts.values())
     weights = [total / max(1, counts[index]) for index in range(2)]
+    if mode == "negative_bias":
+        weights[0] *= negative_multiplier
     return torch.tensor(weights, dtype=torch.float32, device=device)
 
 
@@ -331,10 +405,17 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         train_transform,
         args.batch_size,
         args.num_workers,
-        weighted=True,
+        weighted=args.sampler == "weighted",
     )
     val_loader = make_loader(splits["val"], eval_transform, args.batch_size, args.num_workers, weighted=False)
-    criterion = nn.CrossEntropyLoss(weight=class_weights(splits["train"], device))
+    criterion = nn.CrossEntropyLoss(
+        weight=class_weights(
+            splits["train"],
+            device,
+            args.class_weights,
+            args.negative_weight_multiplier,
+        )
+    )
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max(1, args.epochs))
 
@@ -411,6 +492,9 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
         "best_epoch": best_epoch,
         "image_size": args.image_size,
         "threshold": threshold,
+        "sampler": args.sampler,
+        "class_weights": args.class_weights,
+        "negative_weight_multiplier": args.negative_weight_multiplier,
         "dataset": str(args.dataset),
         "split_counts": {split: Counter(INDEX_TO_LABEL[e.label] for e in rows) for split, rows in splits.items()},
         "val": val_eval,

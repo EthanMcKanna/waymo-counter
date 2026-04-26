@@ -45,6 +45,7 @@ waymo-counter/
 | `CONFIDENCE_THRESHOLD` | No | Minimum detection confidence. Default: `0.70` |
 | `VERIFIER_ENABLED` | No | Enables the second-stage crop verifier. Default: `false` locally, `true` on Render |
 | `VERIFIER_MODEL_URL` | No | TorchScript verifier URL. Default: `v1.2` verifier release |
+| `VERIFIER_CALIBRATION_ENABLED` | No | Enables the lightweight verifier calibration layer. Default: `false` locally, `true` on Render |
 | `VERIFIER_THRESHOLD` | No | Austin verifier threshold. Default: `0.475` |
 | `VERIFIER_NON_AUSTIN_THRESHOLD` | No | Non-Austin verifier threshold for transfer markets. Default: `0.90` |
 | `FETCH_WORKERS` | No | Concurrent image fetchers |
@@ -223,10 +224,12 @@ Render also enables the `v1.2` EfficientNet-B0 TorchScript verifier:
 https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.2/verifier.torchscript.pt
 ```
 
-The verifier accepts YOLO proposal crops before detections are stored. The
-production policy uses `VERIFIER_THRESHOLD=0.475` for Austin and
-`VERIFIER_NON_AUSTIN_THRESHOLD=0.90` for transfer markets, matching the
-review-label benchmark in
+The verifier accepts YOLO proposal crops before detections are stored. Render
+also enables a lightweight calibration layer trained on the review-set train
+split with verifier score, YOLO confidence, box geometry, and market features.
+The calibrated production policy uses `VERIFIER_THRESHOLD=0.43` for Austin and
+`VERIFIER_NON_AUSTIN_THRESHOLD=0.50` for transfer markets, improving the
+review-label benchmark over the raw verifier policy in
 [models/verifier_efficientnet_b0_20260426/policy_benchmark.json](/Users/ethanmckanna/GitHub/waymo-counter/models/verifier_efficientnet_b0_20260426/policy_benchmark.json).
 
 ## Transfer Learning Loop

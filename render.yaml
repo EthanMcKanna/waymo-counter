@@ -25,10 +25,12 @@ services:
         value: "224"
       - key: VERIFIER_CROP_PADDING
         value: "0.35"
+      - key: VERIFIER_CALIBRATION_ENABLED
+        value: "true"
       - key: VERIFIER_THRESHOLD
-        value: "0.475"
+        value: "0.43"
       - key: VERIFIER_NON_AUSTIN_THRESHOLD
-        value: "0.90"
+        value: "0.50"
       - key: FETCH_WORKERS
         value: "16"
       - key: SCAN_LOCK_MINUTES

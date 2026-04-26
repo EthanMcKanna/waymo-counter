@@ -30,6 +30,7 @@ class Config:
     verifier_crop_padding: float
     verifier_threshold: float
     verifier_non_austin_threshold: float
+    verifier_calibration_enabled: bool
     fetch_workers: int
     scan_scope: str
     enabled_markets: list[str]
@@ -90,9 +91,14 @@ def load_config() -> Config:
     verifier_model_path = Path(__file__).parent.parent / "models" / "verifier.torchscript.pt"
     verifier_image_size = int(os.environ.get("VERIFIER_IMAGE_SIZE", "224"))
     verifier_crop_padding = float(os.environ.get("VERIFIER_CROP_PADDING", "0.35"))
-    verifier_threshold = float(os.environ.get("VERIFIER_THRESHOLD", "0.475"))
+    verifier_calibration_enabled = _parse_bool(
+        os.environ.get("VERIFIER_CALIBRATION_ENABLED", "false")
+    )
+    default_austin_threshold = "0.43" if verifier_calibration_enabled else "0.475"
+    default_non_austin_threshold = "0.50" if verifier_calibration_enabled else "0.90"
+    verifier_threshold = float(os.environ.get("VERIFIER_THRESHOLD", default_austin_threshold))
     verifier_non_austin_threshold = float(
-        os.environ.get("VERIFIER_NON_AUSTIN_THRESHOLD", "0.90")
+        os.environ.get("VERIFIER_NON_AUSTIN_THRESHOLD", default_non_austin_threshold)
     )
 
     detected_cpu_count = max(
@@ -130,6 +136,7 @@ def load_config() -> Config:
         verifier_crop_padding=verifier_crop_padding,
         verifier_threshold=verifier_threshold,
         verifier_non_austin_threshold=verifier_non_austin_threshold,
+        verifier_calibration_enabled=verifier_calibration_enabled,
         fetch_workers=fetch_workers,
         scan_scope=scan_scope,
         enabled_markets=enabled_markets,
