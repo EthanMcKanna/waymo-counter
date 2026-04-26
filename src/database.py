@@ -192,10 +192,15 @@ class Database:
         result: DetectionResult,
         image_url: Optional[str],
     ) -> dict:
-        detections_json = [
-            {"confidence": detection.confidence, "bbox": detection.bbox}
-            for detection in result.detections
-        ]
+        detections_json = []
+        for detection in result.detections:
+            detection_json = {
+                "confidence": detection.confidence,
+                "bbox": detection.bbox,
+            }
+            if detection.verifier_confidence is not None:
+                detection_json["verifier_confidence"] = detection.verifier_confidence
+            detections_json.append(detection_json)
 
         return {
             "scan_id": scan_id,

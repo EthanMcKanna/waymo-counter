@@ -45,3 +45,6 @@ models/**/*.onnx
 
 # Logs
 *.log
+
+# Generated review and training datasets
+data/

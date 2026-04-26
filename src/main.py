@@ -21,6 +21,7 @@ from .database import Database
 from .detector import DetectionResult, WaymoDetector
 from .image_annotator import annotate_image, compress_image
 from .storage import ImageStorage
+from .verifier import WaymoVerifier
 
 
 def fetch_camera_image(
@@ -37,6 +38,7 @@ def process_fetched_camera(
     camera: Camera,
     image_bytes: bytes,
     detector: WaymoDetector,
+    verifier: WaymoVerifier | None = None,
     image_storage: ImageStorage | None = None,
 ) -> tuple[Camera, DetectionResult | None, str | None, str | None]:
     try:
@@ -49,20 +51,23 @@ def process_fetched_camera(
         )
 
         image_url = None
-        if result.waymo_count > 0 and image_storage:
+        if result.waymo_count > 0 and (verifier or image_storage):
             from io import BytesIO
             from PIL import Image
 
             timestamp = datetime.now(timezone.utc)
             image = Image.open(BytesIO(image_bytes))
-            annotated = annotate_image(image, result.detections)
-            compressed = compress_image(annotated)
-            image_url = image_storage.upload_image(compressed, camera, timestamp)
+            if verifier:
+                result = verifier.verify_result(image, result)
+            if result.waymo_count > 0 and image_storage:
+                annotated = annotate_image(image, result.detections)
+                compressed = compress_image(annotated)
+                image_url = image_storage.upload_image(compressed, camera, timestamp)
+                annotated.close()
+                del annotated
+                del compressed
             image.close()
-            annotated.close()
             del image
-            del annotated
-            del compressed
 
         del image_bytes
         return (camera, result, None, image_url)
@@ -111,9 +116,22 @@ def run_scan():
         confidence_threshold=config.confidence_threshold,
         image_size=config.model_image_size,
     )
+    verifier = None
+    if config.verifier_enabled:
+        verifier = WaymoVerifier(
+            model_path=config.verifier_model_path,
+            model_url=config.verifier_model_url,
+            image_size=config.verifier_image_size,
+            crop_padding=config.verifier_crop_padding,
+            austin_threshold=config.verifier_threshold,
+            non_austin_threshold=config.verifier_non_austin_threshold,
+        )
 
     print("Loading detection model...")
     detector.load_model()
+    if verifier:
+        print("Loading second-stage verifier...")
+        verifier.load_model()
 
     print("\nFetching active cameras...")
     with CameraFetcher(config=config) as camera_fetcher:
@@ -196,6 +214,7 @@ def run_scan():
                     camera,
                     image_bytes,
                     detector,
+                    verifier,
                     image_storage,
                 )
                 del image_bytes

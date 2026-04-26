@@ -17,6 +17,18 @@ services:
         value: "640"
       - key: CONFIDENCE_THRESHOLD
         value: "0.70"
+      - key: VERIFIER_ENABLED
+        value: "true"
+      - key: VERIFIER_MODEL_URL
+        value: https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.2/verifier.torchscript.pt
+      - key: VERIFIER_IMAGE_SIZE
+        value: "224"
+      - key: VERIFIER_CROP_PADDING
+        value: "0.35"
+      - key: VERIFIER_THRESHOLD
+        value: "0.475"
+      - key: VERIFIER_NON_AUSTIN_THRESHOLD
+        value: "0.90"
       - key: FETCH_WORKERS
         value: "16"
       - key: SCAN_LOCK_MINUTES

@@ -22,6 +22,7 @@ class Detection:
 
     confidence: float
     bbox: list[float]
+    verifier_confidence: Optional[float] = None
 
 
 @dataclass

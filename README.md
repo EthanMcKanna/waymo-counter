@@ -43,6 +43,10 @@ waymo-counter/
 | `MODEL_URL` | No | Model weights URL. Default: `v1.1` edge YOLO26s release |
 | `MODEL_IMAGE_SIZE` | No | YOLO inference image size. Default: `640` |
 | `CONFIDENCE_THRESHOLD` | No | Minimum detection confidence. Default: `0.70` |
+| `VERIFIER_ENABLED` | No | Enables the second-stage crop verifier. Default: `false` locally, `true` on Render |
+| `VERIFIER_MODEL_URL` | No | TorchScript verifier URL. Default: `v1.2` verifier release |
+| `VERIFIER_THRESHOLD` | No | Austin verifier threshold. Default: `0.475` |
+| `VERIFIER_NON_AUSTIN_THRESHOLD` | No | Non-Austin verifier threshold for transfer markets. Default: `0.90` |
 | `FETCH_WORKERS` | No | Concurrent image fetchers |
 | `SCAN_SCOPE` | No | `all` or `service_area`. `service_area` only filters Austin |
 | `ENABLED_MARKETS` | No | Comma-separated market slugs. Default: all 8 markets |
@@ -203,7 +207,7 @@ python3 -m src.main
 
 ## Detector Release
 
-Production uses the `v1.1` edge YOLO26s checkpoint:
+Production uses the `v1.1` edge YOLO26s checkpoint for proposals:
 
 ```text
 https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt
@@ -212,3 +216,30 @@ https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt
 The model is calibrated for `MODEL_IMAGE_SIZE=640` and `CONFIDENCE_THRESHOLD=0.70`.
 It keeps the deployed detector in the same small YOLO26s size class while improving
 validation mAP50-95 on the held-out HQ and full-background splits.
+
+Render also enables the `v1.2` EfficientNet-B0 TorchScript verifier:
+
+```text
+https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.2/verifier.torchscript.pt
+```
+
+The verifier accepts YOLO proposal crops before detections are stored. The
+production policy uses `VERIFIER_THRESHOLD=0.475` for Austin and
+`VERIFIER_NON_AUSTIN_THRESHOLD=0.90` for transfer markets, matching the
+review-label benchmark in
+[models/verifier_efficientnet_b0_20260426/policy_benchmark.json](/Users/ethanmckanna/GitHub/waymo-counter/models/verifier_efficientnet_b0_20260426/policy_benchmark.json).
+
+## Transfer Learning Loop
+
+Non-Austin and highway cameras should be improved through hard-negative mining
+instead of Austin-only retraining. See
+[docs/transfer-learning-workflow.md](/Users/ethanmckanna/GitHub/waymo-counter/docs/transfer-learning-workflow.md).
+
+```bash
+python3 scripts/export_detection_review_set.py --since-hours 24 --output data/review_sets/latest
+python3 scripts/review_candidates_server.py data/review_sets/latest/review_candidates.jsonl
+python3 scripts/build_verifier_dataset.py data/review_sets/latest/review_candidates.labeled.jsonl --output data/verifier_datasets/latest
+```
+
+Use the review labels to train a second-stage verifier that accepts or rejects
+YOLO proposal crops before any future production promotion.

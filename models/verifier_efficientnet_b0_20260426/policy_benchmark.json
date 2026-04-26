@@ -1,0 +1,360 @@
+{
+  "dataset": "/Users/ethanmckanna/GitHub/waymo-counter/data/verifier_datasets/20260426T060029Z",
+  "model_path": "/Users/ethanmckanna/GitHub/waymo-counter/models/verifier_efficientnet_b0_20260426/verifier.torchscript.pt",
+  "policy": {
+    "austin_threshold": 0.475,
+    "non_austin_threshold": 0.9
+  },
+  "splits": {
+    "test": {
+      "global_threshold_0_475": {
+        "by_market": {
+          "atlanta": {
+            "f1": 0.6666666666666666,
+            "fn": 0,
+            "fp": 1,
+            "precision": 0.5,
+            "recall": 1.0,
+            "support": 21,
+            "tn": 19,
+            "tp": 1
+          },
+          "austin": {
+            "f1": 0.9142857142857143,
+            "fn": 1,
+            "fp": 8,
+            "precision": 0.8571428571428571,
+            "recall": 0.9795918367346939,
+            "support": 62,
+            "tn": 5,
+            "tp": 48
+          },
+          "dallas": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 14,
+            "tn": 13,
+            "tp": 0
+          },
+          "houston": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 2,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 28,
+            "tn": 26,
+            "tp": 0
+          },
+          "miami": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1,
+            "tn": 1,
+            "tp": 0
+          },
+          "phoenix": {
+            "f1": 0.28571428571428575,
+            "fn": 1,
+            "fp": 4,
+            "precision": 0.2,
+            "recall": 0.5,
+            "support": 18,
+            "tn": 12,
+            "tp": 1
+          },
+          "san_antonio": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 5,
+            "tn": 5,
+            "tp": 0
+          }
+        },
+        "overall": {
+          "f1": 0.8474576271186441,
+          "fn": 2,
+          "fp": 16,
+          "precision": 0.7575757575757576,
+          "recall": 0.9615384615384616,
+          "tn": 81,
+          "tp": 50
+        }
+      },
+      "policy": {
+        "by_market": {
+          "atlanta": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 21,
+            "tn": 20,
+            "tp": 1
+          },
+          "austin": {
+            "f1": 0.9142857142857143,
+            "fn": 1,
+            "fp": 8,
+            "precision": 0.8571428571428571,
+            "recall": 0.9795918367346939,
+            "support": 62,
+            "tn": 5,
+            "tp": 48
+          },
+          "dallas": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 1,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 14,
+            "tn": 13,
+            "tp": 0
+          },
+          "houston": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 28,
+            "tn": 28,
+            "tp": 0
+          },
+          "miami": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1,
+            "tn": 1,
+            "tp": 0
+          },
+          "phoenix": {
+            "f1": 0.5,
+            "fn": 1,
+            "fp": 1,
+            "precision": 0.5,
+            "recall": 0.5,
+            "support": 18,
+            "tn": 15,
+            "tp": 1
+          },
+          "san_antonio": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 5,
+            "tn": 5,
+            "tp": 0
+          }
+        },
+        "f1": 0.8928571428571429,
+        "fn": 2,
+        "fp": 10,
+        "precision": 0.8333333333333334,
+        "recall": 0.9615384615384616,
+        "tn": 87,
+        "tp": 50
+      },
+      "yolo_only_baseline": {
+        "f1": 0.5174129353233831,
+        "fn": 0,
+        "fp": 97,
+        "precision": 0.348993288590604,
+        "recall": 1.0,
+        "tn": 0,
+        "tp": 52
+      }
+    },
+    "val": {
+      "global_threshold_0_475": {
+        "by_market": {
+          "atlanta": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 21,
+            "tn": 20,
+            "tp": 1
+          },
+          "austin": {
+            "f1": 0.912621359223301,
+            "fn": 2,
+            "fp": 7,
+            "precision": 0.8703703703703703,
+            "recall": 0.9591836734693877,
+            "support": 62,
+            "tn": 6,
+            "tp": 47
+          },
+          "dallas": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 14,
+            "tn": 14,
+            "tp": 0
+          },
+          "houston": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 28,
+            "tn": 28,
+            "tp": 0
+          },
+          "miami": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1,
+            "tn": 1,
+            "tp": 0
+          },
+          "phoenix": {
+            "f1": 0.6666666666666666,
+            "fn": 1,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 0.5,
+            "support": 18,
+            "tn": 16,
+            "tp": 1
+          },
+          "san_antonio": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 5,
+            "tn": 5,
+            "tp": 0
+          }
+        },
+        "overall": {
+          "f1": 0.9074074074074073,
+          "fn": 3,
+          "fp": 7,
+          "precision": 0.875,
+          "recall": 0.9423076923076923,
+          "tn": 90,
+          "tp": 49
+        }
+      },
+      "policy": {
+        "by_market": {
+          "atlanta": {
+            "f1": 1.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 1.0,
+            "recall": 1.0,
+            "support": 21,
+            "tn": 20,
+            "tp": 1
+          },
+          "austin": {
+            "f1": 0.912621359223301,
+            "fn": 2,
+            "fp": 7,
+            "precision": 0.8703703703703703,
+            "recall": 0.9591836734693877,
+            "support": 62,
+            "tn": 6,
+            "tp": 47
+          },
+          "dallas": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 14,
+            "tn": 14,
+            "tp": 0
+          },
+          "houston": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 28,
+            "tn": 28,
+            "tp": 0
+          },
+          "miami": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 1,
+            "tn": 1,
+            "tp": 0
+          },
+          "phoenix": {
+            "f1": 0.0,
+            "fn": 2,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 18,
+            "tn": 16,
+            "tp": 0
+          },
+          "san_antonio": {
+            "f1": 0.0,
+            "fn": 0,
+            "fp": 0,
+            "precision": 0.0,
+            "recall": 0.0,
+            "support": 5,
+            "tn": 5,
+            "tp": 0
+          }
+        },
+        "f1": 0.897196261682243,
+        "fn": 4,
+        "fp": 7,
+        "precision": 0.8727272727272727,
+        "recall": 0.9230769230769231,
+        "tn": 90,
+        "tp": 48
+      },
+      "yolo_only_baseline": {
+        "f1": 0.5174129353233831,
+        "fn": 0,
+        "fp": 97,
+        "precision": 0.348993288590604,
+        "recall": 1.0,
+        "tn": 0,
+        "tp": 52
+      }
+    }
+  }
+}

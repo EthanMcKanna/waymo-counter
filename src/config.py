@@ -23,10 +23,21 @@ class Config:
     model_path: Path
     model_image_size: int
     confidence_threshold: float
+    verifier_enabled: bool
+    verifier_model_url: str
+    verifier_model_path: Path
+    verifier_image_size: int
+    verifier_crop_padding: float
+    verifier_threshold: float
+    verifier_non_austin_threshold: float
     fetch_workers: int
     scan_scope: str
     enabled_markets: list[str]
     scan_lock_minutes: int
+
+
+def _parse_bool(raw_value: str) -> bool:
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _parse_enabled_markets(raw_value: str) -> list[str]:
@@ -71,6 +82,18 @@ def load_config() -> Config:
     model_path = Path(__file__).parent.parent / "models" / "best.pt"
     model_image_size = int(os.environ.get("MODEL_IMAGE_SIZE", "640"))
     confidence_threshold = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.70"))
+    verifier_enabled = _parse_bool(os.environ.get("VERIFIER_ENABLED", "false"))
+    verifier_model_url = os.environ.get(
+        "VERIFIER_MODEL_URL",
+        "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.2/verifier.torchscript.pt",
+    )
+    verifier_model_path = Path(__file__).parent.parent / "models" / "verifier.torchscript.pt"
+    verifier_image_size = int(os.environ.get("VERIFIER_IMAGE_SIZE", "224"))
+    verifier_crop_padding = float(os.environ.get("VERIFIER_CROP_PADDING", "0.35"))
+    verifier_threshold = float(os.environ.get("VERIFIER_THRESHOLD", "0.475"))
+    verifier_non_austin_threshold = float(
+        os.environ.get("VERIFIER_NON_AUSTIN_THRESHOLD", "0.90")
+    )
 
     detected_cpu_count = max(
         1,
@@ -100,6 +123,13 @@ def load_config() -> Config:
         model_path=model_path,
         model_image_size=model_image_size,
         confidence_threshold=confidence_threshold,
+        verifier_enabled=verifier_enabled,
+        verifier_model_url=verifier_model_url,
+        verifier_model_path=verifier_model_path,
+        verifier_image_size=verifier_image_size,
+        verifier_crop_padding=verifier_crop_padding,
+        verifier_threshold=verifier_threshold,
+        verifier_non_austin_threshold=verifier_non_austin_threshold,
         fetch_workers=fetch_workers,
         scan_scope=scan_scope,
         enabled_markets=enabled_markets,

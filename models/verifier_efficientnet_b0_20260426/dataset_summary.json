@@ -1,0 +1,31 @@
+{
+  "classes": [
+    "not_waymo",
+    "waymo"
+  ],
+  "counts": {
+    "market:atlanta:not_waymo": 134,
+    "market:atlanta:waymo": 7,
+    "market:austin:not_waymo": 82,
+    "market:austin:waymo": 329,
+    "market:dallas:not_waymo": 94,
+    "market:dallas:waymo": 2,
+    "market:houston:not_waymo": 193,
+    "market:houston:waymo": 1,
+    "market:miami:not_waymo": 7,
+    "market:orlando:not_waymo": 1,
+    "market:orlando:waymo": 3,
+    "market:phoenix:not_waymo": 104,
+    "market:phoenix:waymo": 16,
+    "market:san_antonio:not_waymo": 33,
+    "test:not_waymo": 97,
+    "test:waymo": 52,
+    "train:not_waymo": 454,
+    "train:waymo": 254,
+    "val:not_waymo": 97,
+    "val:waymo": 52
+  },
+  "input_manifest": "data/review_sets/20260426T060029Z/review_candidates.labeled.jsonl",
+  "note": "Crops are intended for a second-stage verifier. For production-grade training, prefer raw unannotated detection images once raw capture is enabled.",
+  "output": "data/verifier_datasets/20260426T060029Z"
+}
