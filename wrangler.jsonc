@@ -7,7 +7,7 @@
   "containers": [{ "class_name": "WaymoCounter", "image": "./Dockerfile", "instance_type": "standard-2", "max_instances": 1 }],
   "durable_objects": { "bindings": [{ "name": "WAYMO_COUNTER", "class_name": "WaymoCounter" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WaymoCounter"] }],
-  "triggers": { "crons": [] },
+  "triggers": { "crons": ["*/30 * * * *"] },
   "vars": {
     "ROBOTAXI_INGEST_URL": "https://api.robotaxitracker.com",
     "MODEL_URL": "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt",
