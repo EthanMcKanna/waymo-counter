@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "robotaxi-waymo-counter-prod",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [{ "class_name": "WaymoCounter", "image": "./Dockerfile", "instance_type": "standard-2", "max_instances": 1 }],
+  "durable_objects": { "bindings": [{ "name": "WAYMO_COUNTER", "class_name": "WaymoCounter" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["WaymoCounter"] }],
+  "triggers": { "crons": [] },
+  "vars": {
+    "ROBOTAXI_INGEST_URL": "https://api.robotaxitracker.com",
+    "MODEL_URL": "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.1/best.pt",
+    "MODEL_IMAGE_SIZE": "640", "CONFIDENCE_THRESHOLD": "0.70", "VERIFIER_ENABLED": "true",
+    "VERIFIER_MODEL_URL": "https://github.com/EthanMcKanna/waymo-counter/releases/download/v1.2/verifier.torchscript.pt",
+    "VERIFIER_IMAGE_SIZE": "224", "VERIFIER_CROP_PADDING": "0.35", "VERIFIER_CALIBRATION_ENABLED": "true",
+    "VERIFIER_THRESHOLD": "0.43", "VERIFIER_NON_AUSTIN_THRESHOLD": "0.50", "FETCH_WORKERS": "16",
+    "SCAN_LOCK_MINUTES": "120", "SCAN_SCOPE": "all",
+    "ENABLED_MARKETS": "austin,san_antonio,dallas,houston,atlanta,orlando,miami,phoenix"
+  },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

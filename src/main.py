@@ -4,7 +4,7 @@ Waymo Counter - Main Orchestration Script
 This is the entry point for the cron job. It:
 1. Fetches active cameras across enabled markets
 2. Downloads images and runs YOLO detection
-3. Uploads results to Supabase
+3. Sends authenticated, idempotent results to the Robotaxi Cloudflare Worker
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ def run_scan():
     print(f"Enabled markets: {', '.join(config.enabled_markets)}")
 
     print("Initializing components...")
-    db = Database(config.supabase_url, config.supabase_key)
+    db = Database(config.robotaxi_ingest_url, config.robotaxi_ingest_secret)
     if config.scan_lock_minutes > 0:
         lock_cutoff = datetime.now(timezone.utc) - timedelta(
             minutes=config.scan_lock_minutes

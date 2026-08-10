@@ -17,8 +17,8 @@ from .cameras import DEFAULT_ENABLED_MARKETS, MARKET_SPECS
 class Config:
     """Application configuration."""
 
-    supabase_url: str
-    supabase_key: str
+    robotaxi_ingest_url: str
+    robotaxi_ingest_secret: str
     model_url: str
     model_path: Path
     model_image_size: int
@@ -70,11 +70,11 @@ def _parse_enabled_markets(raw_value: str) -> list[str]:
 def load_config() -> Config:
     """Load configuration from environment variables."""
 
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_key = os.environ.get("SUPABASE_KEY")
+    robotaxi_ingest_url = os.environ.get("ROBOTAXI_INGEST_URL")
+    robotaxi_ingest_secret = os.environ.get("ROBOTAXI_INGEST_SECRET")
 
-    if not supabase_url or not supabase_key:
-        raise ValueError("SUPABASE_URL and SUPABASE_KEY environment variables are required")
+    if not robotaxi_ingest_url or not robotaxi_ingest_secret:
+        raise ValueError("ROBOTAXI_INGEST_URL and ROBOTAXI_INGEST_SECRET are required")
 
     model_url = os.environ.get(
         "MODEL_URL",
@@ -123,8 +123,8 @@ def load_config() -> Config:
     scan_lock_minutes = int(os.environ.get("SCAN_LOCK_MINUTES", "120"))
 
     return Config(
-        supabase_url=supabase_url,
-        supabase_key=supabase_key,
+        robotaxi_ingest_url=robotaxi_ingest_url,
+        robotaxi_ingest_secret=robotaxi_ingest_secret,
         model_url=model_url,
         model_path=model_path,
         model_image_size=model_image_size,

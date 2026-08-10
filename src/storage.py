@@ -1,53 +1,24 @@
-"""
-Supabase Storage Module
-
-Handles uploading detection images to Supabase Storage.
-"""
+"""Private R2-backed detection image uploads through the Worker API."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Optional
 
-from supabase import Client
-
 from .cameras import Camera
+from .cloudflare import CloudflareClient
 
 
 class ImageStorage:
-    """Handles uploading images to Supabase Storage."""
-
-    BUCKET_NAME = "detection-images"
-
-    def __init__(self, client: Client):
+    def __init__(self, client: CloudflareClient):
         self.client = client
 
-    def upload_image(
-        self,
-        image_bytes: bytes,
-        camera: Camera,
-        timestamp: Optional[datetime] = None,
-    ) -> Optional[str]:
-        if timestamp is None:
-            timestamp = datetime.now(timezone.utc)
-
-        date_str = timestamp.strftime("%Y-%m-%d")
-        time_str = timestamp.strftime("%H%M%S")
-        file_path = (
-            f"detections/{camera.market}/{camera.source}/{camera.area_label}/"
-            f"{camera.storage_slug}/{date_str}/{time_str}.jpg"
-        )
-
+    def upload_image(self, image_bytes: bytes, camera: Camera,
+                     timestamp: Optional[datetime] = None) -> Optional[str]:
+        timestamp = timestamp or datetime.now(timezone.utc)
+        storage_id = f"{camera.market}-{camera.source}-{camera.storage_slug}-{timestamp.strftime('%Y%m%d%H%M%S')}"
         try:
-            self.client.storage.from_(self.BUCKET_NAME).upload(
-                path=file_path,
-                file=image_bytes,
-                file_options={
-                    "content-type": "image/jpeg",
-                    "cache-control": "public, max-age=31536000",
-                },
-            )
-            return self.client.storage.from_(self.BUCKET_NAME).get_public_url(file_path)
+            return self.client.upload_media(image_bytes, storage_id)
         except Exception as exc:
-            print(f"Failed to upload image for camera {camera.camera_key}: {exc}")
+            print(f"Failed to upload image for camera {camera.camera_key}: {type(exc).__name__}")
             return None
